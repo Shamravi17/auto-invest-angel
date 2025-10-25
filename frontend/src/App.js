@@ -33,6 +33,8 @@ function App() {
   const [editingItem, setEditingItem] = useState(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [testTelegram, setTestTelegram] = useState({ bot_token: '', chat_ids: [''] });
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const [testingLLM, setTestingLLM] = useState(false);
 
   useEffect(() => {
     fetchData();
