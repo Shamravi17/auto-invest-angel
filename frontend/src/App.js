@@ -453,6 +453,7 @@ function App() {
                       </div>
                     </DialogContent>
                   </Dialog>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
