@@ -314,7 +314,7 @@ function App() {
                   <Switch checked={config?.is_active || false} onCheckedChange={(c) => updateConfig({ is_active: c })} />
                 </div>
                 <div className=\"flex items-center justify-between p-4 rounded-lg bg-yellow-50 border border-yellow-200\">
-                  <div><Label className=\"font-semibold text-yellow-800\">Auto Execute Trades</Label><p className=\"text-sm text-yellow-700\">\u26a0\ufe0f Will execute real orders</p></div>
+                  <div><Label className=\"font-semibold text-yellow-800\">Auto Execute Trades</Label><p className=\"text-sm text-yellow-700\">⚠️ Will execute real orders</p></div>
                   <Switch checked={config?.auto_execute_trades || false} onCheckedChange={(c) => updateConfig({ auto_execute_trades: c })} />
                 </div>
                 <Separator />
