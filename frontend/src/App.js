@@ -421,6 +421,10 @@ function App() {
               <Brain className="w-4 h-4 mr-2" />
               LLM Logs
             </TabsTrigger>
+            <TabsTrigger value="executed-orders" data-testid="executed-orders-tab" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+              <TrendingUp className="w-4 h-4 mr-2" />
+              Executed Orders
+            </TabsTrigger>
           </TabsList>
 
           {/* Portfolio Tab */}
