@@ -388,9 +388,14 @@ async def get_status():
     if not smart_api or not auth_tokens:
         await authenticate_angel_one()
     
+    # Get config to check if bot is active
+    config_doc = await db.bot_config.find_one({"_id": "main"})
+    is_active = config_doc.get('is_active', False) if config_doc else False
+    
     return {
         "angel_one_connected": smart_api is not None and auth_tokens is not None,
         "bot_running": scheduler.running,
+        "bot_active": is_active and scheduler.running,  # Both config active and scheduler running
         "scheduled_jobs": len(scheduler.get_jobs())
     }
 
