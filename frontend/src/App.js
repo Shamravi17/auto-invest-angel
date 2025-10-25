@@ -102,6 +102,19 @@ function App() {
     }
   };
 
+  const analyzePortfolio = async () => {
+    setAnalyzingPortfolio(true);
+    try {
+      const res = await axios.post(`${API}/analyze-portfolio`);
+      toast.success('Portfolio analysis complete!');
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to analyze portfolio');
+    } finally {
+      setAnalyzingPortfolio(false);
+    }
+  };
+
   const updateWatchlistItem = async (symbol, updates) => {
     try {
       await axios.put(`${API}/watchlist/${symbol}`, updates);
