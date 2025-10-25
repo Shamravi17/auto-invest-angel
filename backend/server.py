@@ -50,10 +50,14 @@ class BotConfig(BaseModel):
     llm_provider: str = "emergent"
     llm_model: str = "gpt-4o-mini"
     openai_api_key: Optional[str] = None
+    custom_llm_url: Optional[str] = None
+    custom_llm_key: Optional[str] = None
     telegram_chat_ids: List[str] = []
     telegram_bot_token: Optional[str] = None
     enable_notifications: bool = True
     auto_execute_trades: bool = False
+    enable_tax_harvesting: bool = False
+    minimum_gain_threshold_percent: float = 5.0
     analysis_parameters: str = "Consider P/E ratio, volume trends, RSI indicators, support/resistance levels, and overall market sentiment."
     last_updated: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
@@ -66,10 +70,36 @@ class WatchlistItem(BaseModel):
     sip_amount: Optional[float] = None
     sip_frequency_days: Optional[int] = 30
     next_action_date: Optional[str] = None
+    re_entry_price: Optional[float] = None  # Target price for re-entry after exit
     quantity: Optional[int] = None
     avg_price: Optional[float] = None
     notes: Optional[str] = ""
     added_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class ExecutedOrder(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    symbol: str
+    order_type: str  # SIP, BUY, SELL, EXIT_AND_REENTER
+    transaction_type: str  # BUY or SELL
+    quantity: int
+    price: float
+    total_value: float
+    order_id: str
+    llm_decision: str
+    llm_reasoning: str
+    profit_loss: Optional[float] = None
+    profit_loss_pct: Optional[float] = None
+
+class LLMPromptLog(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    symbol: str
+    action_type: str
+    full_prompt: str
+    llm_response: str
+    model_used: str
+    decision_made: str
 
 class AnalysisLog(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
