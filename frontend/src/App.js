@@ -377,6 +377,10 @@ function App() {
               <Eye className="w-4 h-4 mr-2" />
               Analysis Logs
             </TabsTrigger>
+            <TabsTrigger value="llm-logs" data-testid="llm-logs-tab" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+              <Brain className="w-4 h-4 mr-2" />
+              LLM Logs
+            </TabsTrigger>
           </TabsList>
 
           {/* Portfolio Tab */}
