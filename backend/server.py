@@ -362,7 +362,6 @@ And I will execute SELL + immediate RE-BUY.
 **SIP CONFIGURATION**:
 - User suggested amount: ₹{suggested_sip}
 - Frequency: Every {frequency} days
-- Auto-sell threshold: {config.auto_sell_threshold_percent}%
 
 **YOUR DECISION OPTIONS**:
 
@@ -374,14 +373,20 @@ And I will execute SELL + immediate RE-BUY.
    - Market too volatile or expensive
    - Wait for better timing
 
-3. **EXIT_AND_REENTER** - Stock overvalued, exit and re-enter lower
-   - Only if holding exists and gain >= {config.minimum_gain_threshold_percent}%
-   - After all charges (brokerage 0.06%, STT 0.1%, GST 18% on brokerage)
+3. **EXIT_AND_REENTER** - Book profits and re-enter lower
+   - Only if holding exists AND profit >= {config.profit_threshold_percent}%
+   - After all charges, net gain >= {config.minimum_gain_threshold_percent}%
+   - NEVER use this option if position is in LOSS
    - Recommend re-entry price
+
+**CRITICAL RULE**: NEVER sell at a loss in EXIT_AND_REENTER
+- Only book profits, not losses
+- For losses, use tax harvesting (separate decision)
 
 **If Tax Harvesting is enabled and loss >= ₹{config.tax_harvesting_loss_slab}**:
 - Respond with TAX_HARVESTING: YES
-- I will sell and immediately re-buy to book tax loss
+- This will sell AND immediately re-buy (to book tax loss while maintaining position)
+- This is the ONLY case where selling at loss is allowed
 
 **RESPOND FORMAT**:
 ```
@@ -391,6 +396,11 @@ RE_ENTRY_PRICE: <target price if EXIT_AND_REENTER>
 TAX_HARVESTING: [YES | NO]
 REASONING: <brief explanation>
 ```
+
+**Examples**:
+- Profit 20%, exceed threshold 15% → EXIT_AND_REENTER possible
+- Loss -10%, no tax harvesting → HOLD (do EXECUTE or SKIP for new SIP)
+- Loss -₹60k, tax harvesting ON → TAX_HARVESTING: YES (sell + immediate rebuy)
 """
         
         elif action == "buy":
