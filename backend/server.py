@@ -616,7 +616,22 @@ REASONING: <brief 2-3 line explanation>
 - If P&L is -3%: "SELL_ACTION: HOLD\nRE_ENTRY_PRICE: 0\nTAX_HARVESTING: NO\nREASONING: Below threshold, hold for recovery"
 """
         else:
-            prompt = f"Analyze {symbol} for {action} action. Current price: ₹{market_data.get('ltp', 0):.2f}"
+            # For buy or other actions
+            prompt = f"""
+You are a stock market analyst. Analyze this stock for {action.upper()} action.
+
+**STOCK**: {symbol}
+**CURRENT PRICE**: ₹{market_data.get('ltp', 0):.2f}
+
+**PORTFOLIO CONTEXT**:
+- Current Quantity: {item.get('quantity', 0)}
+- Avg Price: ₹{item.get('avg_price', 0):.2f}
+
+**USER'S ANALYSIS PARAMETERS**:
+{config.analysis_parameters}
+
+Provide your recommendation based on current market conditions and fundamentals.
+"""
         
         # Make LLM call
         try:
