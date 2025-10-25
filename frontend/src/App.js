@@ -1071,43 +1071,48 @@ function App() {
             </Card>
 
             <Card className="bg-white/90 backdrop-blur border-slate-200">
-              <CardHeader><CardTitle>Trading Thresholds</CardTitle><CardDescription>Configure auto-sell and gain thresholds</CardDescription></CardHeader>
+              <CardHeader><CardTitle>Trading Thresholds</CardTitle><CardDescription>NEVER sell at loss except tax harvesting</CardDescription></CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Auto Sell Threshold (%) - SIP Orders</Label>
+                  <Label>Profit Threshold for Selling (%)</Label>
                   <div className="flex items-center gap-4">
                     <Slider
-                      value={[config?.auto_sell_threshold_percent || 10]}
-                      onValueChange={([v]) => updateConfig({ auto_sell_threshold_percent: v })}
+                      value={[tempConfig?.profit_threshold_percent || 15]}
+                      onValueChange={([v]) => updateTempConfig({ profit_threshold_percent: v })}
                       min={5}
                       max={50}
                       step={1}
                       className="flex-1"
                     />
-                    <span className="text-lg font-bold text-red-600 min-w-[60px] text-right">
-                      {config?.auto_sell_threshold_percent || 10}%
+                    <span className="text-lg font-bold text-green-600 min-w-[60px] text-right">
+                      {tempConfig?.profit_threshold_percent || 15}%
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500">If loss exceeds this %, LLM will consider selling</p>
+                  <p className="text-xs text-slate-500">Minimum PROFIT % required to consider selling. Never sell at loss (except tax harvesting).</p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Minimum Gain Threshold (%)</Label>
+                  <Label>Minimum Gain Threshold (%) - After Charges</Label>
                   <div className="flex items-center gap-4">
                     <Slider
-                      value={[config?.minimum_gain_threshold_percent || 5]}
-                      onValueChange={([v]) => updateConfig({ minimum_gain_threshold_percent: v })}
+                      value={[tempConfig?.minimum_gain_threshold_percent || 5]}
+                      onValueChange={([v]) => updateTempConfig({ minimum_gain_threshold_percent: v })}
                       min={1}
                       max={20}
                       step={0.5}
                       className="flex-1"
                     />
-                    <span className="text-lg font-bold text-green-600 min-w-[60px] text-right">
-                      {config?.minimum_gain_threshold_percent || 5}%
+                    <span className="text-lg font-bold text-blue-600 min-w-[60px] text-right">
+                      {tempConfig?.minimum_gain_threshold_percent || 5}%
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500">Minimum net gain (after charges) required for exit/re-entry</p>
+                  <p className="text-xs text-slate-500">Net gain (after brokerage, STT, GST) required for exit/re-entry strategy</p>
                 </div>
+
+                <Button onClick={saveConfig} className="w-full" variant="outline">
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Thresholds
+                </Button>
               </CardContent>
             </Card>
 
