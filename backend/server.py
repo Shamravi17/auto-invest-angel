@@ -412,6 +412,9 @@ async def run_trading_bot():
         
         config = BotConfig(**config_doc)
         
+        # Get portfolio info (for balance)
+        portfolio = await get_portfolio()
+        
         # Get watchlist items with actions
         watchlist = await db.watchlist.find({"action": {"$in": ["sip", "buy", "sell"]}}).to_list(100)
         
@@ -447,8 +450,8 @@ async def run_trading_bot():
                 logger.warning(f"⚠️ No price data for {symbol}")
                 continue
             
-            # Get LLM decision
-            llm_result = await get_llm_trading_decision(item, market_data, config)
+            # Get LLM decision with portfolio balance
+            llm_result = await get_llm_trading_decision(item, market_data, config, portfolio)
             
             # Log the analysis
             analysis_log = AnalysisLog(
@@ -464,10 +467,27 @@ async def run_trading_bot():
                 if action == "sip" or action == "buy":
                     # Calculate quantity
                     if action == "sip":
-                        amount = item.get('sip_amount', 0)
-                        quantity = int(amount / current_price) if amount > 0 else 0
+                        # Use LLM-decided SIP amount
+                        sip_amount = llm_result.get('sip_amount', 0)
+                        if sip_amount == 0:
+                            sip_amount = item.get('sip_amount', 0)
+                        
+                        # Check if we have sufficient balance
+                        if sip_amount > portfolio['available_cash']:
+                            logger.warning(f"⚠️ Insufficient balance for SIP. Required: ₹{sip_amount}, Available: ₹{portfolio['available_cash']}")
+                            analysis_log.error = f"Insufficient balance: ₹{portfolio['available_cash']}"
+                            await db.analysis_logs.insert_one(analysis_log.model_dump())
+                            continue
+                        
+                        quantity = int(sip_amount / current_price) if sip_amount > 0 else 0
                     else:
                         quantity = item.get('quantity', 1)
+                        total_cost = quantity * current_price
+                        if total_cost > portfolio['available_cash']:
+                            logger.warning(f"⚠️ Insufficient balance for buy. Required: ₹{total_cost}, Available: ₹{portfolio['available_cash']}")
+                            analysis_log.error = f"Insufficient balance"
+                            await db.analysis_logs.insert_one(analysis_log.model_dump())
+                            continue
                     
                     if quantity > 0:
                         result = await execute_order(symbol, token, exchange, "BUY", quantity)
@@ -484,6 +504,9 @@ async def run_trading_bot():
                                     {"$set": {"next_action_date": next_date}}
                                 )
                             
+                            # Update portfolio balance
+                            portfolio['available_cash'] -= (quantity * current_price)
+                            
                             notification = f"""
 🎯 *{action.upper()} Executed*
 
@@ -491,10 +514,11 @@ async def run_trading_bot():
 📊 Quantity: {quantity}
 💰 Price: ₹{current_price}
 💵 Value: ₹{quantity * current_price:.2f}
+💳 Remaining Balance: ₹{portfolio['available_cash']:.2f}
 🆔 Order: {result['order_id']}
 
 🤖 AI Reasoning:
-{llm_result['reasoning'][:200]}
+{llm_result['reasoning'][:250]}
 
 ⏰ {datetime.now().strftime('%Y-%m-%d %H:%M')}
 """
@@ -513,6 +537,7 @@ async def run_trading_bot():
                             
                             avg_price = item.get('avg_price', 0)
                             profit_loss = (current_price - avg_price) * quantity if avg_price else 0
+                            profit_loss_pct = ((current_price - avg_price) / avg_price * 100) if avg_price > 0 else 0
                             
                             notification = f"""
 💸 *SELL Executed*
@@ -521,11 +546,11 @@ async def run_trading_bot():
 📊 Quantity: {quantity}
 💰 Sell Price: ₹{current_price}
 📈 Avg Buy: ₹{avg_price}
-💵 P&L: ₹{profit_loss:.2f}
+💵 P&L: ₹{profit_loss:.2f} ({profit_loss_pct:.2f}%)
 🆔 Order: {result['order_id']}
 
 🤖 AI Reasoning:
-{llm_result['reasoning'][:200]}
+{llm_result['reasoning'][:250]}
 
 ⏰ {datetime.now().strftime('%Y-%m-%d %H:%M')}
 """
@@ -539,12 +564,19 @@ async def run_trading_bot():
             
             elif llm_result['decision'] == "EXECUTE" and not config.auto_execute_trades:
                 logger.info(f"⚠️ Would execute {action} for {symbol} but auto-execute is disabled")
+                
+                sip_info = ""
+                if action == "sip":
+                    sip_amount = llm_result.get('sip_amount', 0)
+                    sip_info = f"\n💰 LLM Suggested Amount: ₹{sip_amount}"
+                
                 notification = f"""
 💡 *Trading Signal*
 
 📈 Symbol: {symbol}
-🎯 Action: {action.upper()}
+🎯 Action: {action.upper()}{sip_info}
 💰 Price: ₹{current_price}
+💳 Available Cash: ₹{portfolio['available_cash']:.2f}
 
 🤖 LLM Recommendation: EXECUTE
 ⚠️ Auto-execute is OFF
