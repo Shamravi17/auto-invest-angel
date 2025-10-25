@@ -423,25 +423,29 @@ Line 1: SIP_ACTION: [EXECUTE | WAIT | SKIP]
 Lines 2+: Reasoning
 """
         
-        # Initialize LLM
+        # Initialize LLM with correct integration
         api_key = config.openai_api_key if config.llm_provider == "openai" and config.openai_api_key else os.environ.get('EMERGENT_LLM_KEY')
         
         if not current_session_id:
             current_session_id = f"trading_{uuid.uuid4().hex[:8]}"
         
-        chat = LlmChat(
-            api_key=api_key,
-            session_id=current_session_id,
-            system_message="You are an expert stock market analyst providing actionable trading decisions with tax optimization."
-        )
-        
-        if config.llm_provider == "openai":
+        try:
+            chat = LlmChat(
+                api_key=api_key,
+                session_id=current_session_id,
+                system_message="You are an expert stock market analyst providing actionable trading decisions."
+            )
+            
+            # Set model based on provider
             chat.with_model("openai", config.llm_model)
-        else:
-            chat.with_model("openai", config.llm_model)
-        
-        user_message = UserMessage(text=prompt)
-        response = await chat.send_message(user_message)
+            
+            user_message = UserMessage(text=prompt)
+            response = await chat.send_message(user_message)
+            
+        except Exception as llm_error:
+            logger.error(f"LLM API error: {str(llm_error)}")
+            # Fallback response
+            response = f"SIP_ACTION: SKIP\nAMOUNT: 0\nERROR: {str(llm_error)}"
         
         # Parse response
         decision = "WAIT"
