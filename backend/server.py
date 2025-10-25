@@ -384,49 +384,145 @@ async def run_bot_analysis():
         if not auth_tokens:
             await angel_login()
         
-        # Analyze each symbol
+        # Get current portfolio
+        portfolio = await get_portfolio()
+        holdings_dict = {h.get('tradingsymbol'): h for h in portfolio.get('holdings', [])}
+        
+        # Process each watchlist item
         for item in watchlist:
             symbol = item['symbol']
             token = item.get('symbol_token', '')
             exchange = item.get('exchange', 'NSE')
+            asset_type = item.get('asset_type', 'stock')
             
-            logger.info(f"📊 Analyzing {symbol}...")
+            logger.info(f"📊 Analyzing {symbol} ({asset_type})...")
             
             # Get market data
             market_data = await get_market_data(symbol, token, exchange)
+            current_price = market_data.get('ltp', 0)
             
-            # Analyze with LLM
-            llm_result = await analyze_with_llm(market_data, config)
+            # === SIP LOGIC FOR ETFs ===
+            sip_config = item.get('sip_config', {})
+            if asset_type == 'etf' and sip_config.get('enabled'):
+                next_sip = sip_config.get('next_sip_date')
+                today = datetime.now().date().isoformat()
+                
+                # Check if SIP is due
+                if not next_sip or next_sip <= today:
+                    sip_amount = sip_config.get('amount', 0)
+                    if sip_amount > 0 and current_price > 0:
+                        quantity = int(sip_amount / current_price)
+                        
+                        if quantity > 0:
+                            logger.info(f"💰 SIP due for {symbol}: ₹{sip_amount} ({quantity} units)")
+                            
+                            if config.auto_execute_trades:
+                                result = await execute_buy_order(symbol, token, exchange, quantity)
+                                
+                                notification = f"""
+🤖 *Auto-SIP Executed*
+
+📈 Symbol: {symbol}
+💵 Amount: ₹{sip_amount}
+📊 Quantity: {quantity} units
+💰 Price: ₹{current_price}
+{'✅ Order Placed' if result['success'] else '❌ Order Failed'}
+
+⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+"""
+                                await send_telegram_notification(notification, config)
+                            else:
+                                logger.info(f"⚠️ Auto-trade disabled. Would have bought {quantity} units of {symbol}")
+                            
+                            # Update next SIP date
+                            next_date = (datetime.now() + timedelta(days=sip_config.get('frequency_days', 30))).date().isoformat()
+                            await db.watchlist.update_one(
+                                {"symbol": symbol},
+                                {"$set": {"sip_config.next_sip_date": next_date}}
+                            )
             
-            # Save log
-            log = AnalysisLog(
-                symbol=symbol,
-                prompt=llm_result['prompt'],
-                llm_response=llm_result['llm_response'],
-                analysis_summary=llm_result['summary'],
-                market_data=market_data,
-                signal=llm_result['signal']
-            )
+            # === SELL STRATEGY FOR HOLDINGS ===
+            sell_strategy = item.get('sell_strategy', {})
+            if sell_strategy.get('enabled') and symbol in holdings_dict:
+                holding = holdings_dict[symbol]
+                avg_price = float(holding.get('averageprice', 0))
+                quantity = int(holding.get('quantity', 0))
+                
+                if avg_price > 0 and quantity > 0:
+                    profit_loss_pct = ((current_price - avg_price) / avg_price) * 100
+                    
+                    stop_loss = sell_strategy.get('stop_loss_percent', 5.0)
+                    target_profit = sell_strategy.get('target_profit_percent', 15.0)
+                    
+                    should_sell = False
+                    sell_reason = ""
+                    
+                    # Check stop loss
+                    if profit_loss_pct <= -stop_loss:
+                        should_sell = True
+                        sell_reason = f"Stop Loss triggered ({profit_loss_pct:.2f}%)"
+                    
+                    # Check target profit
+                    elif profit_loss_pct >= target_profit:
+                        should_sell = True
+                        sell_reason = f"Target Profit reached ({profit_loss_pct:.2f}%)"
+                    
+                    if should_sell:
+                        logger.info(f"🚨 SELL signal for {symbol}: {sell_reason}")
+                        
+                        if config.auto_execute_trades:
+                            result = await execute_sell_order(symbol, token, exchange, quantity)
+                            
+                            notification = f"""
+🚨 *Sell Strategy Executed*
+
+📉 Symbol: {symbol}
+📊 Quantity: {quantity} units
+💰 Buy Price: ₹{avg_price}
+💵 Sell Price: ₹{current_price}
+📈 P&L: {profit_loss_pct:.2f}%
+📋 Reason: {sell_reason}
+{'✅ Order Placed' if result['success'] else '❌ Order Failed'}
+
+⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+"""
+                            await send_telegram_notification(notification, config)
+                        else:
+                            logger.info(f"⚠️ Auto-trade disabled. Would have sold {quantity} units of {symbol}")
             
-            await db.analysis_logs.insert_one(log.model_dump())
-            
-            # Send notification if signal found
-            if llm_result['signal'] in ['BUY', 'SELL']:
-                notification = f"""
-🚨 *Trading Signal Alert*
+            # === LLM ANALYSIS (for insights) ===
+            if sell_strategy.get('use_llm_signals', True):
+                llm_result = await analyze_with_llm(market_data, config)
+                
+                # Save log
+                log = AnalysisLog(
+                    symbol=symbol,
+                    prompt=llm_result['prompt'],
+                    llm_response=llm_result['llm_response'],
+                    analysis_summary=llm_result['summary'],
+                    market_data=market_data,
+                    signal=llm_result['signal']
+                )
+                
+                await db.analysis_logs.insert_one(log.model_dump())
+                
+                # Send notification for strong signals
+                if llm_result['signal'] in ['BUY', 'SELL'] and asset_type == 'stock':
+                    notification = f"""
+🤖 *AI Analysis Alert*
 
 📈 Symbol: {symbol}
 💡 Signal: *{llm_result['signal']}*
-💰 Price: ₹{market_data.get('ltp', 0)}
+💰 Price: ₹{current_price}
 
 📝 Analysis:
 {llm_result['summary']}
 
 ⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 """
-                await send_telegram_notification(notification, config)
+                    await send_telegram_notification(notification, config)
             
-            logger.info(f"✅ {symbol} analysis complete. Signal: {llm_result['signal']}")
+            logger.info(f"✅ {symbol} analysis complete")
         
         logger.info("✅ Bot analysis cycle completed")
         
