@@ -276,7 +276,7 @@ function App() {
                                 </Badge>
                                 {holding && <Badge className=\"bg-green-100 text-green-800\">In Portfolio</Badge>}
                               </div>
-                              <p className=\"text-sm text-slate-500\">{item.exchange} \u2022 {item.symbol_token}</p>
+                              <p className=\"text-sm text-slate-500\">{item.exchange} • {item.symbol_token}</p>
                             </div>
                             <div className=\"flex gap-2\">
                               <Button variant=\"ghost\" size=\"icon\" onClick={() => { setEditingItem(item); setShowEditDialog(true); }}>
