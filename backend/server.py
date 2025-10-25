@@ -632,6 +632,16 @@ async def add_to_watchlist(item: Watchlist):
     await db.watchlist.insert_one(item.model_dump())
     return {"success": True, "message": f"{item.symbol} added to watchlist"}
 
+@app.put("/api/watchlist/{symbol}")
+async def update_watchlist_item(symbol: str, updates: Dict[str, Any]):
+    result = await db.watchlist.update_one(
+        {"symbol": symbol},
+        {"$set": updates}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Symbol not found")
+    return {"success": True, "message": f"{symbol} updated"}
+
 @app.delete("/api/watchlist/{symbol}")
 async def remove_from_watchlist(symbol: str):
     result = await db.watchlist.delete_one({"symbol": symbol})
