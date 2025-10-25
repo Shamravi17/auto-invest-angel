@@ -1203,7 +1203,7 @@ function App() {
             <Card className="bg-white/90 backdrop-blur border-slate-200">
               <CardHeader>
                 <CardTitle>Analysis Logs</CardTitle>
-                <CardDescription>Recent LLM analysis results</CardDescription>
+                <CardDescription>Recent trading analysis results</CardDescription>
               </CardHeader>
               <CardContent>
                 {logs.length === 0 ? (
@@ -1217,14 +1217,65 @@ function App() {
                       <div key={log.id} className="p-4 rounded-lg border bg-white">
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center gap-3">
-                            <Badge className={log.signal === 'BUY' ? 'bg-green-100 text-green-800' : log.signal === 'SELL' ? 'bg-red-100 text-red-800' : 'bg-slate-100'}>
-                              {log.signal || 'N/A'}
+                            <Badge className={log.llm_decision === 'EXECUTE' ? 'bg-green-100 text-green-800' : log.llm_decision === 'SELL' ? 'bg-red-100 text-red-800' : 'bg-slate-100'}>
+                              {log.llm_decision || 'SKIP'}
                             </Badge>
                             <span className="font-semibold">{log.symbol}</span>
+                            <span className="text-xs text-slate-500 capitalize">{log.action}</span>
                           </div>
-                          <span className="text-xs text-slate-500">{new Date(log.timestamp).toLocaleString()}</span>
+                          <span className="text-xs text-slate-500">{new Date(log.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST</span>
                         </div>
-                        <p className="text-sm text-slate-600">{log.analysis_summary}</p>
+                        {log.executed && <p className="text-xs text-green-600 mb-2">✓ Executed</p>}
+                        {log.error && <p className="text-xs text-red-600">{log.error}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* LLM Logs */}
+          <TabsContent value="llm-logs">
+            <Card className="bg-white/90 backdrop-blur border-slate-200">
+              <CardHeader>
+                <CardTitle>LLM Prompt & Response Logs</CardTitle>
+                <CardDescription>Detailed prompts and responses from AI analysis</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {llmLogs.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Brain className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                    <p className="text-slate-500 text-lg mb-2">No LLM logs yet</p>
+                    <p className="text-slate-400 text-sm">LLM prompts and responses will appear here</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {llmLogs.map((log) => (
+                      <div key={log.id} className="p-4 rounded-lg border bg-white">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <Badge className={log.decision_made === 'EXECUTE' || log.decision_made === 'SELL' ? 'bg-green-100 text-green-800' : log.decision_made === 'EXIT_AND_REENTER' ? 'bg-yellow-100 text-yellow-800' : 'bg-slate-100'}>
+                              {log.decision_made}
+                            </Badge>
+                            <span className="font-semibold">{log.symbol}</span>
+                            <span className="text-xs text-slate-500 capitalize">{log.action_type}</span>
+                            <Badge variant="outline" className="text-xs">{log.model_used}</Badge>
+                          </div>
+                          <span className="text-xs text-slate-500">{new Date(log.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST</span>
+                        </div>
+                        
+                        <div className="space-y-3">
+                          <div>
+                            <p className="text-xs font-semibold text-slate-700 mb-1">Prompt:</p>
+                            <pre className="text-xs bg-slate-50 p-3 rounded border overflow-x-auto whitespace-pre-wrap">{log.full_prompt.substring(0, 500)}...</pre>
+                          </div>
+                          
+                          <div>
+                            <p className="text-xs font-semibold text-slate-700 mb-1">LLM Response:</p>
+                            <pre className="text-xs bg-blue-50 p-3 rounded border overflow-x-auto whitespace-pre-wrap">{log.llm_response}</pre>
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
