@@ -356,38 +356,35 @@ And I will execute SELL + immediate RE-BUY.
 **SIP CONFIGURATION**:
 - User suggested amount: ₹{suggested_sip}
 - Frequency: Every {frequency} days
-- This is SYSTEMATIC INVESTMENT - regular periodic investing
+- Auto-sell threshold: {config.auto_sell_threshold_percent}%
 
-**YOUR TASK - ENHANCED SIP LOGIC**:
-Determine if we should:
-1. **EXECUTE** - Invest now (regular SIP)
-2. **SKIP** - Wait for better conditions
-3. **EXIT_AND_REENTER** - Stock is overvalued, sell current holding and re-enter at lower price
+**YOUR DECISION OPTIONS**:
 
-**EXIT_AND_REENTER Decision Criteria**:
-- Current holding exists and is significantly overvalued (e.g., RSI > 75, P/E too high)
-- Potential to re-enter at 5-10% lower price within next 30 days
-- Tax implications are favorable (or tax harvesting enabled)
-- After accounting for:
-  * Brokerage charges: 0.03% on buy, 0.03% on sell
-  * STT (Securities Transaction Tax): 0.1% on sell
-  * GST on brokerage: 18%
-  * Capital gains tax (if applicable)
-- Net benefit should exceed {config.minimum_gain_threshold_percent}% threshold
+1. **EXECUTE** - Invest now (normal SIP)
+   - Market conditions favorable
+   - Good entry point
+   
+2. **SKIP** - Don't invest now
+   - Market too volatile or expensive
+   - Wait for better timing
 
-**RESPOND WITH**:
-Line 1: SIP_ACTION: [EXECUTE | SKIP | EXIT_AND_REENTER]
-Line 2: AMOUNT: <amount in rupees to invest if EXECUTE>
-Line 3: RE_ENTRY_PRICE: <target price for re-entry if EXIT_AND_REENTER>
-Line 4: TAX_HARVESTING: [YES | NO] - recommend tax harvesting?
-Lines 5+: Brief reasoning (why this decision, calculations if applicable)
+3. **EXIT_AND_REENTER** - Stock overvalued, exit and re-enter lower
+   - Only if holding exists and gain >= {config.minimum_gain_threshold_percent}%
+   - After all charges (brokerage 0.06%, STT 0.1%, GST 18% on brokerage)
+   - Recommend re-entry price
 
-**Example Response for EXIT_AND_REENTER**:
-"SIP_ACTION: EXIT_AND_REENTER
-AMOUNT: 0
-RE_ENTRY_PRICE: 62
-TAX_HARVESTING: YES
-Stock overbought (RSI 78, P/E 45 vs industry 30). Current gain 8.5%. After taxes (1% STCG) and charges (0.2%), net gain ~7.3%. Exceeds 5% threshold. Technical indicators suggest correction to ₹62 level (10% down) likely in 2-3 weeks. Recommend exit now, re-enter at ₹62."
+**If Tax Harvesting is enabled and loss >= ₹{config.tax_harvesting_loss_slab}**:
+- Respond with TAX_HARVESTING: YES
+- I will sell and immediately re-buy to book tax loss
+
+**RESPOND FORMAT**:
+```
+SIP_ACTION: [EXECUTE | SKIP | EXIT_AND_REENTER]
+AMOUNT: <rupees to invest>
+RE_ENTRY_PRICE: <target price if EXIT_AND_REENTER>
+TAX_HARVESTING: [YES | NO]
+REASONING: <brief explanation>
+```
 """
         
         elif action == "buy":
