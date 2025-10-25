@@ -812,6 +812,14 @@ async def run_trading_bot():
             logger.info("Watchlist is empty")
             return
         
+        # Count actions
+        action_counts = {}
+        for item in watchlist:
+            action = item['action']
+            action_counts[action] = action_counts.get(action, 0) + 1
+        
+        logger.info(f"Watchlist items by action: {action_counts}")
+        
         # Get portfolio for context
         try:
             portfolio = await get_portfolio()
@@ -820,6 +828,8 @@ async def run_trading_bot():
             portfolio = {"holdings": [], "available_cash": 0}
         
         # Process each watchlist item
+        processed = 0
+        skipped = 0
         for item in watchlist:
             symbol = item['symbol']
             action = item['action']
@@ -827,7 +837,11 @@ async def run_trading_bot():
             # Skip items with "hold" action - only process SIP, Buy, Sell
             if action == 'hold':
                 logger.debug(f"Skipping {symbol} - action is 'hold' (monitor only)")
+                skipped += 1
                 continue
+            
+            logger.info(f"Processing {symbol} - action: {action.upper()}")
+            processed += 1
             
             # Get market data from portfolio if available
             holding = next((h for h in portfolio['holdings'] if h.get('tradingsymbol') == symbol), None)
