@@ -464,72 +464,106 @@ function App() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {watchlist.map((item) => (
-                      <div
-                        key={item.id}
-                        data-testid={`watchlist-item-${item.symbol}`}
-                        className="p-4 rounded-lg border border-slate-200 bg-white hover:shadow-md transition-shadow"
-                      >
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center">
-                              {item.asset_type === 'etf' ? <DollarSign className="w-5 h-5 text-white" /> : <TrendingUp className="w-5 h-5 text-white" />}
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <p className="font-semibold text-slate-800 text-lg">{item.symbol}</p>
-                                <Badge variant="outline">{item.asset_type.toUpperCase()}</Badge>
-                              </div>
-                              <p className="text-sm text-slate-500">{item.exchange} • Token: {item.symbol_token}</p>
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                setEditingItem(item);
-                                setShowEditDialog(true);
-                              }}
-                              className="text-blue-600 hover:bg-blue-50"
-                              data-testid={`edit-${item.symbol}-btn`}
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              data-testid={`remove-${item.symbol}-btn`}
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeSymbol(item.symbol)}
-                              className="text-red-600 hover:bg-red-50"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
+                    {watchlist.map((item) => {
+                      // Find matching portfolio holding
+                      const holding = portfolio.holdings.find(h => h.tradingsymbol === item.symbol);
+                      const ltp = holding ? parseFloat(holding.ltp || 0) : 0;
+                      const avgPrice = item.avg_price || (holding ? parseFloat(holding.averageprice || 0) : 0);
+                      const qty = item.quantity || (holding ? parseInt(holding.quantity || 0) : 0);
+                      const pnl = avgPrice > 0 && ltp > 0 ? ((ltp - avgPrice) / avgPrice) * 100 : 0;
 
-                        {/* Strategy Display */}
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                          {item.asset_type === 'etf' && item.sip_config ? (
-                            <div className="p-3 rounded bg-green-50 border border-green-200">
-                              <p className="font-semibold text-green-800 mb-1">Auto-SIP</p>
-                              <p className="text-green-700">
-                                {item.sip_config.enabled ? `₹${item.sip_config.amount} every ${item.sip_config.frequency_days} days` : 'Disabled'}
-                              </p>
+                      return (
+                        <div
+                          key={item.id}
+                          data-testid={`watchlist-item-${item.symbol}`}
+                          className="p-4 rounded-lg border border-slate-200 bg-white hover:shadow-md transition-shadow"
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center">
+                                <TrendingUp className="w-5 h-5 text-white" />
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <p className="font-semibold text-slate-800 text-lg">{item.symbol}</p>
+                                  <Badge 
+                                    variant={item.action === 'sip' ? 'default' : item.action === 'buy' ? 'secondary' : item.action === 'sell' ? 'destructive' : 'outline'}
+                                  >
+                                    {item.action.toUpperCase()}
+                                  </Badge>
+                                  {holding && <Badge className="bg-green-100 text-green-800">In Portfolio</Badge>}
+                                </div>
+                                <p className="text-sm text-slate-500">{item.exchange} • Token: {item.symbol_token}</p>
+                              </div>
                             </div>
-                          ) : null}
-                          
-                          {item.sell_strategy ? (
-                            <div className="p-3 rounded bg-red-50 border border-red-200">
-                              <p className="font-semibold text-red-800 mb-1">Sell Strategy</p>
-                              <p className="text-red-700">
-                                {item.sell_strategy.enabled ? `SL: ${item.sell_strategy.stop_loss_percent}% | TP: ${item.sell_strategy.target_profit_percent}%` : 'Disabled'}
-                              </p>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setEditingItem(item);
+                                  setShowEditDialog(true);
+                                }}
+                                className="text-blue-600 hover:bg-blue-50"
+                                data-testid={`edit-${item.symbol}-btn`}
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                data-testid={`remove-${item.symbol}-btn`}
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removeSymbol(item.symbol)}
+                                className="text-red-600 hover:bg-red-50"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
                             </div>
-                          ) : null}
+                          </div>
+
+                          {/* Portfolio Info */}
+                          {holding && (
+                            <div className="grid grid-cols-4 gap-4 text-sm border-t pt-3 mb-3">
+                              <div>
+                                <p className="text-slate-500">Quantity</p>
+                                <p className="font-semibold">{qty}</p>
+                              </div>
+                              <div>
+                                <p className="text-slate-500">Avg Price</p>
+                                <p className="font-semibold">{formatCurrency(avgPrice)}</p>
+                              </div>
+                              <div>
+                                <p className="text-slate-500">LTP</p>
+                                <p className="font-semibold">{formatCurrency(ltp)}</p>
+                              </div>
+                              <div>
+                                <p className="text-slate-500">P&L</p>
+                                <p className={`font-semibold ${pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                  {pnl >= 0 ? '+' : ''}{pnl.toFixed(2)}%
+                                </p>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Action Config Display */}
+                          {item.action === 'sip' && item.sip_amount && (
+                            <div className="p-3 rounded bg-green-50 border border-green-200 text-sm">
+                              <p className="font-semibold text-green-800">SIP: Rs.{item.sip_amount} every {item.sip_frequency_days} days</p>
+                            </div>
+                          )}
+                          {item.action === 'buy' && item.quantity && (
+                            <div className="p-3 rounded bg-blue-50 border border-blue-200 text-sm">
+                              <p className="font-semibold text-blue-800">Buy: {item.quantity} shares</p>
+                            </div>
+                          )}
+                          {item.action === 'sell' && (
+                            <div className="p-3 rounded bg-red-50 border border-red-200 text-sm">
+                              <p className="font-semibold text-red-800">Sell: Exit position when LLM confirms</p>
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
