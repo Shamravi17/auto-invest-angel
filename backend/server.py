@@ -938,6 +938,12 @@ async def get_llm_logs(limit: int = 50):
     logs = await db.llm_prompt_logs.find({}, {"_id": 0}).sort("timestamp", -1).limit(limit).to_list(limit)
     return logs
 
+@app.get("/api/angel-one-logs")
+async def get_angel_one_logs(limit: int = 100):
+    """Get Angel One API call logs"""
+    logs = await db.angel_one_api_logs.find({}, {"_id": 0}).sort("timestamp", -1).limit(limit).to_list(limit)
+    return logs
+
 # Available LLM Models
 @app.get("/api/llm-models")
 async def get_available_models():
