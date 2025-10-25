@@ -118,6 +118,22 @@ function App() {
     }
   };
 
+  const testLLMConnection = async () => {
+    setTestingLLM(true);
+    try {
+      const res = await axios.post(`${API}/test-llm`);
+      if (res.data.success) {
+        toast.success(res.data.message);
+      } else {
+        toast.error(res.data.message);
+      }
+    } catch (error) {
+      toast.error('Failed to test LLM connection');
+    } finally {
+      setTestingLLM(false);
+    }
+  };
+
   const updateWatchlistItem = async (symbol, updates) => {
     try {
       await axios.put(`${API}/watchlist/${symbol}`, updates);
