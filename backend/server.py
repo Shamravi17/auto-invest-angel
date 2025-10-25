@@ -841,11 +841,20 @@ You are a stock market analyst. Analyze this stock for SIP (Systematic Investmen
 
 **AVAILABLE BALANCE**: ₹{available_balance:.2f}
 **BASE SIP AMOUNT**: ₹{sip_amount:.2f} (user's reference amount)
+**TOTAL SIP STOCKS IN WATCHLIST**: {total_sip_count} stocks (including this one)
+**BALANCE PER SIP STOCK**: ₹{(available_balance / total_sip_count) if total_sip_count > 0 else 0:.2f} (if divided equally)
 
 **USER'S ANALYSIS PARAMETERS**:
 {config.analysis_parameters}
 
 **YOUR TASK**: Decide SIP amount with SMART DYNAMIC ADJUSTMENT based on price levels and indicators.
+
+**IMPORTANT CONTEXT**:
+- You have {total_sip_count} total SIP stocks to manage
+- Available balance needs to be distributed across all SIPs
+- Consider both this stock's opportunity AND fair allocation
+- If this stock shows exceptional opportunity (very low price), you can suggest MORE than equal share
+- If this stock is expensive, suggest LESS to save balance for other SIPs
 
 **CRITICAL: DYNAMIC AMOUNT LOGIC** (Apply this strictly):
 
