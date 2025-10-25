@@ -802,12 +802,26 @@ async def run_trading_bot():
             symbol = item['symbol']
             action = item['action']
             
-            # Get market data (placeholder - would use Angel One API)
-            market_data = {
-                "ltp": item.get('avg_price', 100),  # Placeholder
-                "volume": 0,
-                "change_pct": 0
-            }
+            # Skip items with "hold" action - only process SIP, Buy, Sell
+            if action == 'hold':
+                logger.debug(f"Skipping {symbol} - action is 'hold' (monitor only)")
+                continue
+            
+            # Get market data from portfolio if available
+            holding = next((h for h in portfolio['holdings'] if h.get('tradingsymbol') == symbol), None)
+            if holding:
+                market_data = {
+                    "ltp": float(holding.get('ltp', 0)),
+                    "volume": 0,
+                    "change_pct": 0
+                }
+            else:
+                # Use item's avg_price as placeholder if not in portfolio
+                market_data = {
+                    "ltp": item.get('avg_price', 100),
+                    "volume": 0,
+                    "change_pct": 0
+                }
             
             # Get LLM decision
             llm_result = await get_llm_decision(symbol, action, market_data, config, item)
