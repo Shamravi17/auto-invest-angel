@@ -27,6 +27,8 @@ function App() {
   const [portfolio, setPortfolio] = useState({ holdings: [], positions: [] });
   const [portfolioAnalyses, setPortfolioAnalyses] = useState([]);
   const [analyzingPortfolio, setAnalyzingPortfolio] = useState(false);
+  const [configChanged, setConfigChanged] = useState(false);
+  const [tempConfig, setTempConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [newSymbol, setNewSymbol] = useState({ symbol: '', exchange: 'NSE', symbol_token: '', action: 'hold' });
   const [showAddSymbol, setShowAddSymbol] = useState(false);
