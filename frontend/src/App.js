@@ -375,15 +375,20 @@ function App() {
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle>Watchlist & Trading Strategy</CardTitle>
-                    <CardDescription>Configure SIP for ETFs and sell strategy for stocks</CardDescription>
+                    <CardDescription>Portfolio items + manual watchlist with trading actions</CardDescription>
                   </div>
-                  <Dialog open={showAddSymbol} onOpenChange={setShowAddSymbol}>
-                    <DialogTrigger asChild>
-                      <Button data-testid="add-symbol-btn" className="bg-gradient-to-r from-blue-600 to-indigo-600">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add Symbol
-                      </Button>
-                    </DialogTrigger>
+                  <div className="flex gap-2">
+                    <Button onClick={syncPortfolio} variant="outline">
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Sync Portfolio
+                    </Button>
+                    <Dialog open={showAddSymbol} onOpenChange={setShowAddSymbol}>
+                      <DialogTrigger asChild>
+                        <Button data-testid="add-symbol-btn" className="bg-gradient-to-r from-blue-600 to-indigo-600">
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Symbol
+                        </Button>
+                      </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
                         <DialogTitle>Add Symbol to Watchlist</DialogTitle>
