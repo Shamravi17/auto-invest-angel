@@ -983,6 +983,27 @@ function App() {
               </CardContent>
             </Card>
 
+            {/* Save Configuration Button */}
+            {configChanged && (
+              <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold text-green-800">Configuration Changed</p>
+                      <p className="text-sm text-green-600">Save your changes to apply the new schedule settings</p>
+                    </div>
+                    <Button
+                      onClick={saveConfig}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      <Save className="w-4 h-4 mr-2" />
+                      Save Configuration
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Rest of control panel (LLM, Analysis Params, Telegram) - keeping original code */}
             <Card className="bg-white/90 backdrop-blur border-slate-200">
               <CardHeader>
