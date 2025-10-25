@@ -4,7 +4,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone, timedelta
-from smartapi import SmartConnect
+from SmartApi import SmartConnect
 import pyotp
 import os
 import logging
