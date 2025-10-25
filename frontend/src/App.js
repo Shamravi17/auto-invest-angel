@@ -853,13 +853,7 @@ function App() {
           {/* Control Panel */}
           <TabsContent value="control" className="space-y-6">
             <Card className="bg-white/90 backdrop-blur border-slate-200">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Bot className="w-5 h-5 text-blue-600" />
-                  Bot Control
-                </CardTitle>
-                <CardDescription>Activate or deactivate the trading bot</CardDescription>
-              </CardHeader>
+              <CardHeader><CardTitle className="flex items-center gap-2"><Bot className="w-5 h-5 text-blue-600" />Bot Control</CardTitle></CardHeader>
               <CardContent className="space-y-6">
                 <div className="flex items-center justify-between p-4 rounded-lg bg-slate-50">
                   <div>
@@ -868,8 +862,11 @@ function App() {
                   </div>
                   <Switch
                     data-testid="bot-toggle"
-                    checked={config?.is_active || false}
-                    onCheckedChange={(checked) => updateConfig({ is_active: checked })}
+                    checked={tempConfig?.is_active || false}
+                    onCheckedChange={(checked) => {
+                      updateTempConfig({ is_active: checked });
+                      updateConfig({ is_active: checked });
+                    }}
                     className="data-[state=checked]:bg-green-600"
                   />
                 </div>
@@ -877,12 +874,15 @@ function App() {
                 <div className="flex items-center justify-between p-4 rounded-lg bg-yellow-50 border border-yellow-200">
                   <div>
                     <Label className="text-base font-semibold text-yellow-800">Auto Execute Trades</Label>
-                    <p className="text-sm text-yellow-700 mt-1">⚠️ Bot will execute buy/sell orders automatically</p>
+                    <p className="text-sm text-yellow-700 mt-1">⚠️ Will execute real orders</p>
                   </div>
                   <Switch
                     data-testid="auto-trade-toggle"
-                    checked={config?.auto_execute_trades || false}
-                    onCheckedChange={(checked) => updateConfig({ auto_execute_trades: checked })}
+                    checked={tempConfig?.auto_execute_trades || false}
+                    onCheckedChange={(checked) => {
+                      updateTempConfig({ auto_execute_trades: checked });
+                      updateConfig({ auto_execute_trades: checked });
+                    }}
                     className="data-[state=checked]:bg-yellow-600"
                   />
                 </div>
@@ -891,20 +891,76 @@ function App() {
 
                 <div className="space-y-4">
                   <Label className="text-base font-semibold text-slate-700">Schedule Frequency</Label>
-                  <div className="flex items-center gap-4">
-                    <Slider
-                      data-testid="schedule-slider"
-                      value={[config?.schedule_minutes || 30]}
-                      onValueChange={([value]) => updateConfig({ schedule_minutes: value })}
-                      min={5}
-                      max={180}
-                      step={5}
-                      className="flex-1"
-                    />
-                    <span className="text-lg font-bold text-blue-600 min-w-[80px] text-right">
-                      {config?.schedule_minutes || 30} min
-                    </span>
+                  
+                  <div className="space-y-2">
+                    <Label className="text-sm">Frequency Type</Label>
+                    <Select
+                      value={tempConfig?.schedule_type || "interval"}
+                      onValueChange={(value) => updateTempConfig({ schedule_type: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="interval">Every X Minutes</SelectItem>
+                        <SelectItem value="hourly">Multiple Times Daily (Every X Hours)</SelectItem>
+                        <SelectItem value="daily">Once Daily (Specific Time)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
+
+                  {tempConfig?.schedule_type === "interval" && (
+                    <div className="space-y-2">
+                      <Label className="text-sm">Minutes Interval</Label>
+                      <div className="flex items-center gap-4">
+                        <Slider
+                          value={[tempConfig?.schedule_minutes || 30]}
+                          onValueChange={([value]) => updateTempConfig({ schedule_minutes: value })}
+                          min={5}
+                          max={180}
+                          step={5}
+                          className="flex-1"
+                        />
+                        <span className="text-lg font-bold text-blue-600 min-w-[80px] text-right">
+                          {tempConfig?.schedule_minutes || 30} min
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {tempConfig?.schedule_type === "hourly" && (
+                    <div className="space-y-2">
+                      <Label className="text-sm">Hours Interval</Label>
+                      <Select
+                        value={String(tempConfig?.schedule_hours_interval || 1)}
+                        onValueChange={(value) => updateTempConfig({ schedule_hours_interval: parseInt(value) })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">Every 1 Hour</SelectItem>
+                          <SelectItem value="2">Every 2 Hours</SelectItem>
+                          <SelectItem value="3">Every 3 Hours</SelectItem>
+                          <SelectItem value="4">Every 4 Hours</SelectItem>
+                          <SelectItem value="6">Every 6 Hours</SelectItem>
+                          <SelectItem value="12">Every 12 Hours</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {tempConfig?.schedule_type === "daily" && (
+                    <div className="space-y-2">
+                      <Label className="text-sm">Time (24-hour format)</Label>
+                      <Input
+                        type="time"
+                        value={tempConfig?.schedule_time || "09:00"}
+                        onChange={(e) => updateTempConfig({ schedule_time: e.target.value })}
+                      />
+                      <p className="text-xs text-slate-500">Bot will run once daily at this time</p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex gap-3">
