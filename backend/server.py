@@ -417,8 +417,22 @@ async def get_portfolio():
     
     start_time = datetime.now()
     try:
+        # Fetch holdings
         holdings = smart_api.holding()
         execution_time = (datetime.now() - start_time).total_seconds() * 1000
+        
+        # Fetch available funds
+        available_cash = 0
+        try:
+            rms_limits = smart_api.rmsLimit()
+            if rms_limits and rms_limits.get('status'):
+                # Get available cash from RMS limits
+                rms_data = rms_limits.get('data', {})
+                available_cash = float(rms_data.get('availablecash', 0))
+                logger.info(f"Available cash from Angel One: ₹{available_cash:.2f}")
+        except Exception as rms_error:
+            logger.warning(f"Could not fetch RMS limits: {str(rms_error)}")
+            available_cash = 0
         
         if holdings['status']:
             # Log successful portfolio fetch
@@ -426,14 +440,14 @@ async def get_portfolio():
                 endpoint="/portfolio/holdings",
                 method="GET",
                 request_data=None,
-                response_data={"status": "success", "holdings_count": len(holdings.get('data', []))},
+                response_data={"status": "success", "holdings_count": len(holdings.get('data', [])), "available_cash": available_cash},
                 status_code=200,
                 execution_time_ms=execution_time
             )
             
             return {
                 "holdings": holdings['data'],
-                "available_cash": 10000.0  # Placeholder
+                "available_cash": available_cash
             }
         else:
             error_msg = holdings.get('message', 'Unknown error')
