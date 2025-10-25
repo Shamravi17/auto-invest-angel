@@ -1242,7 +1242,9 @@ async def run_trading_bot():
                     
                     # Place order if valid
                     if transaction_type and quantity > 0:
-                        order_result = await execute_angel_one_order(symbol, transaction_type, quantity)
+                        # Get symbol token from item
+                        symbol_token = item.get('symbol_token', '')
+                        order_result = await execute_angel_one_order(symbol, transaction_type, quantity, symbol_token)
                         
                         # Log to executed_orders collection
                         executed_order = ExecutedOrder(
