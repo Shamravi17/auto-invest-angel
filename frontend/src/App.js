@@ -41,6 +41,8 @@ function App() {
   const [llmLogs, setLlmLogs] = useState([]);
   const [tempCredentials, setTempCredentials] = useState(null);
   const [credentialsChanged, setCredentialsChanged] = useState(false);
+  const [watchlistFilter, setWatchlistFilter] = useState('all'); // all, sip, buy, sell, hold
+  const [watchlistSort, setWatchlistSort] = useState('symbol'); // symbol, pnl, action
 
   useEffect(() => {
     fetchData();
