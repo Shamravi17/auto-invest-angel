@@ -1370,16 +1370,49 @@ function App() {
                       <div key={log.id} className="p-4 rounded-lg border bg-white">
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center gap-3">
-                            <Badge className={log.llm_decision === 'EXECUTE' ? 'bg-green-100 text-green-800' : log.llm_decision === 'SELL' ? 'bg-red-100 text-red-800' : 'bg-slate-100'}>
+                            <Badge className={
+                              log.llm_decision === 'EXECUTE' ? 'bg-green-100 text-green-800' : 
+                              log.llm_decision === 'EXIT' ? 'bg-purple-100 text-purple-800' :
+                              log.llm_decision === 'SELL' ? 'bg-red-100 text-red-800' : 
+                              log.llm_decision === 'EXIT_AND_REENTER' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-slate-100'
+                            }>
                               {log.llm_decision || 'SKIP'}
                             </Badge>
                             <span className="font-semibold">{log.symbol}</span>
                             <span className="text-xs text-slate-500 capitalize">{log.action}</span>
+                            
+                            {log.executed && (
+                              <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                ✓ Order Placed
+                              </Badge>
+                            )}
+                            {log.error && (
+                              <Badge variant="outline" className="text-xs bg-red-50 text-red-700 border-red-200">
+                                ✗ Failed
+                              </Badge>
+                            )}
                           </div>
                           <span className="text-xs text-slate-500">{new Date(log.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST</span>
                         </div>
-                        {log.executed && <p className="text-xs text-green-600 mb-2">✓ Executed</p>}
-                        {log.error && <p className="text-xs text-red-600">{log.error}</p>}
+                        
+                        {log.order_id && (
+                          <p className="text-xs text-slate-600 mb-2">
+                            <span className="font-semibold">Order ID:</span> {log.order_id}
+                          </p>
+                        )}
+                        
+                        {log.market_data && (
+                          <p className="text-xs text-slate-600 mb-2">
+                            <span className="font-semibold">Price:</span> ₹{log.market_data.ltp?.toFixed(2) || 'N/A'}
+                          </p>
+                        )}
+                        
+                        {log.error && (
+                          <p className="text-xs text-red-600 bg-red-50 p-2 rounded mt-2">
+                            <span className="font-semibold">Error:</span> {log.error}
+                          </p>
+                        )}
                       </div>
                     ))}
                   </div>
