@@ -969,6 +969,68 @@ async def get_available_models():
         "supports_custom": True
     }
 
+@app.post("/api/test-llm")
+async def test_llm_connection():
+    """Test LLM connection with current config"""
+    try:
+        config_doc = await db.bot_config.find_one({"_id": "main"})
+        if not config_doc:
+            raise HTTPException(status_code=400, detail="Bot not configured")
+        
+        config = BotConfig(**config_doc)
+        
+        # Get API key
+        if config.llm_provider == "openai" and config.openai_api_key:
+            api_key = config.openai_api_key
+            provider_name = "OpenAI"
+        else:
+            api_key = os.environ.get('EMERGENT_LLM_KEY')
+            provider_name = "Emergent LLM"
+        
+        # Test connection
+        chat = LlmChat(
+            api_key=api_key,
+            session_id="test_connection",
+            system_message="You are a test assistant."
+        )
+        
+        chat.with_model("openai", config.llm_model)
+        
+        message = UserMessage(text="Respond with 'Connection successful' in exactly 2 words.")
+        response = await chat.send_message(message)
+        
+        return {
+            "success": True,
+            "provider": provider_name,
+            "model": config.llm_model,
+            "response": response,
+            "message": f"✅ {provider_name} connection working!"
+        }
+        
+    except Exception as e:
+        error_msg = str(e)
+        if "AuthenticationError" in error_msg or "Incorrect API key" in error_msg:
+            return {
+                "success": False,
+                "error": "Invalid API key",
+                "message": "❌ API key is incorrect. Please check your OpenAI API key.",
+                "details": "Get your API key from: https://platform.openai.com/api-keys"
+            }
+        elif "quota" in error_msg.lower():
+            return {
+                "success": False,
+                "error": "Quota exceeded",
+                "message": "❌ API quota exceeded. Add credits or switch provider.",
+                "details": error_msg[:200]
+            }
+        else:
+            return {
+                "success": False,
+                "error": "Connection failed",
+                "message": f"❌ LLM connection error: {error_msg[:100]}",
+                "details": error_msg[:500]
+            }
+
 @app.post("/api/analyze-portfolio")
 async def analyze_portfolio():
     """Get LLM analysis of entire portfolio"""
