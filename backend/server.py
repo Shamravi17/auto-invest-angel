@@ -661,6 +661,13 @@ async def clear_logs():
     result = await db.analysis_logs.delete_many({})
     return {"success": True, "deleted_count": result.deleted_count}
 
+# Portfolio
+@app.get("/api/portfolio")
+async def get_angel_portfolio():
+    """Get Angel One portfolio (holdings + positions)"""
+    portfolio = await get_portfolio()
+    return portfolio
+
 # Manual trigger
 @app.post("/api/run-analysis")
 async def trigger_analysis(background_tasks: BackgroundTasks):
