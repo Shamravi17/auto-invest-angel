@@ -2,12 +2,11 @@ import React, { useState, useEffect } from 'react';
 import '@/App.css';
 import axios from 'axios';
 import { Toaster, toast } from 'sonner';
-import { Activity, Bot, Settings, TrendingUp, BarChart3, Bell, Plus, Trash2, Play, RefreshCw, Brain, Wallet, Edit2, Send } from 'lucide-react';
+import { Activity, Bot, Settings, TrendingUp, BarChart3, Bell, Plus, Trash2, Play, Pause, RefreshCw, Brain, Zap, Eye, Wallet, DollarSign, Edit2, Save } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -23,14 +22,14 @@ function App() {
   const [status, setStatus] = useState({});
   const [config, setConfig] = useState(null);
   const [watchlist, setWatchlist] = useState([]);
-  const [portfolio, setPortfolio] = useState({ holdings: [], positions: [] });
   const [logs, setLogs] = useState([]);
+  const [portfolio, setPortfolio] = useState({ holdings: [], positions: [] });
   const [loading, setLoading] = useState(true);
-  const [showAddDialog, setShowAddDialog] = useState(false);
-  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [newSymbol, setNewSymbol] = useState({ symbol: '', exchange: 'NSE', symbol_token: '', asset_type: 'stock' });
+  const [showAddSymbol, setShowAddSymbol] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
-  const [newItem, setNewItem] = useState({ symbol: '', exchange: 'NSE', symbol_token: '', action: 'hold' });
-  const [notificationMessage, setNotificationMessage] = useState('');
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [testTelegram, setTestTelegram] = useState({ bot_token: '', chat_ids: [''] });
 
   useEffect(() => {
     fetchData();
@@ -40,22 +39,22 @@ function App() {
 
   const fetchData = async () => {
     try {
-      const [statusRes, configRes, watchlistRes, portfolioRes, logsRes] = await Promise.all([
+      const [statusRes, configRes, watchlistRes, logsRes, portfolioRes] = await Promise.all([
         axios.get(`${API}/status`),
         axios.get(`${API}/config`),
         axios.get(`${API}/watchlist`),
-        axios.get(`${API}/portfolio`),
-        axios.get(`${API}/logs?limit=20`)
+        axios.get(`${API}/logs?limit=20`),
+        axios.get(`${API}/portfolio`)
       ]);
       
       setStatus(statusRes.data);
       setConfig(configRes.data);
       setWatchlist(watchlistRes.data);
-      setPortfolio(portfolioRes.data);
       setLogs(logsRes.data);
+      setPortfolio(portfolioRes.data);
       setLoading(false);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error fetching data:', error);
       toast.error('Failed to fetch data');
       setLoading(false);
     }
@@ -63,238 +62,293 @@ function App() {
 
   const updateConfig = async (updates) => {
     try {
-      await axios.put(`${API}/config`, { ...config, ...updates });
-      setConfig({ ...config, ...updates });
-      toast.success('Configuration updated');
+      const updatedConfig = { ...config, ...updates };
+      await axios.put(`${API}/config`, updatedConfig);
+      setConfig(updatedConfig);
+      toast.success('Configuration updated successfully');
       fetchData();
     } catch (error) {
-      toast.error('Failed to update');
+      toast.error('Failed to update configuration');
     }
   };
 
-  const addItem = async () => {
-    if (!newItem.symbol || !newItem.symbol_token) {
-      toast.error('Enter symbol and token');
+  const addSymbol = async () => {
+    if (!newSymbol.symbol || !newSymbol.symbol_token) {
+      toast.error('Please enter both symbol and token');
       return;
     }
     try {
-      await axios.post(`${API}/watchlist`, newItem);
-      toast.success('Added successfully');
-      setNewItem({ symbol: '', exchange: 'NSE', symbol_token: '', action: 'hold' });
-      setShowAddDialog(false);
+      await axios.post(`${API}/watchlist`, newSymbol);
+      toast.success(`${newSymbol.symbol} added to watchlist`);
+      setNewSymbol({ symbol: '', exchange: 'NSE', symbol_token: '', asset_type: 'stock' });
+      setShowAddSymbol(false);
       fetchData();
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to add');
+      toast.error(error.response?.data?.detail || 'Failed to add symbol');
     }
   };
 
-  const updateItem = async () => {
+  const updateWatchlistItem = async (symbol, updates) => {
     try {
-      await axios.put(`${API}/watchlist/${editingItem.symbol}`, editingItem);
-      toast.success('Updated successfully');
+      await axios.put(`${API}/watchlist/${symbol}`, updates);
+      toast.success(`${symbol} updated successfully`);
+      fetchData();
       setShowEditDialog(false);
       setEditingItem(null);
-      fetchData();
     } catch (error) {
-      toast.error('Failed to update');
+      toast.error('Failed to update symbol');
     }
   };
 
-  const deleteItem = async (symbol) => {
+  const removeSymbol = async (symbol) => {
     try {
       await axios.delete(`${API}/watchlist/${symbol}`);
-      toast.success('Removed successfully');
+      toast.success(`${symbol} removed from watchlist`);
       fetchData();
     } catch (error) {
-      toast.error('Failed to remove');
+      toast.error('Failed to remove symbol');
     }
   };
 
-  const sendNotification = async () => {
-    if (!notificationMessage) {
-      toast.error('Enter message');
+  const triggerAnalysis = async () => {
+    try {
+      await axios.post(`${API}/run-analysis`);
+      toast.success('Analysis triggered! Check logs in a moment.');
+      setTimeout(fetchData, 3000);
+    } catch (error) {
+      toast.error('Failed to trigger analysis');
+    }
+  };
+
+  const testTelegramNotification = async () => {
+    if (!testTelegram.bot_token || !testTelegram.chat_ids[0]) {
+      toast.error('Please enter bot token and chat ID');
       return;
     }
     try {
-      await axios.post(`${API}/send-notification`, { message: notificationMessage });
-      toast.success('Notification sent!');
-      setNotificationMessage('');
+      await axios.post(`${API}/test-telegram`, testTelegram);
+      toast.success('Test notification sent!');
     } catch (error) {
-      toast.error('Failed to send');
+      toast.error(error.response?.data?.detail || 'Failed to send notification');
     }
   };
 
-  const triggerBot = async () => {
-    try {
-      await axios.post(`${API}/run-bot`);
-      toast.success('Bot triggered! Check logs shortly.');
-      setTimeout(fetchData, 3000);
-    } catch (error) {
-      toast.error('Failed to trigger bot');
-    }
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(value);
   };
-
-  const formatCurrency = (value) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(value);
 
   const calculatePortfolioValue = () => {
-    return portfolio.holdings.reduce((sum, h) => sum + (parseFloat(h.ltp || 0) * parseInt(h.quantity || 0)), 0);
+    const holdingsValue = portfolio.holdings.reduce((sum, h) => {
+      return sum + (parseFloat(h.ltp || 0) * parseInt(h.quantity || 0));
+    }, 0);
+    return holdingsValue;
   };
-
-  // Merge portfolio holdings with watchlist
-  const mergedItems = [...watchlist];
-  portfolio.holdings.forEach(holding => {
-    const exists = watchlist.find(w => w.symbol === holding.tradingsymbol);
-    if (!exists) {
-      mergedItems.push({
-        symbol: holding.tradingsymbol,
-        exchange: holding.exchange,
-        symbol_token: holding.symboltoken || '',
-        action: 'hold',
-        quantity: parseInt(holding.quantity || 0),
-        avg_price: parseFloat(holding.averageprice || 0),
-        id: `portfolio_${holding.tradingsymbol}`
-      });
-    }
-  });
 
   if (loading) {
     return (
-      <div className=\"min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50\">
-        <div className=\"text-center\">
-          <RefreshCw className=\"w-12 h-12 animate-spin text-blue-600 mx-auto mb-4\" />
-          <p className=\"text-slate-600 text-lg\">Loading...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+        <div className="text-center">
+          <RefreshCw className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-slate-600 text-lg">Loading AI Trading Bot...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className=\"min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50\">
-      <Toaster position=\"top-right\" richColors />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      <Toaster position="top-right" richColors />
       
-      <header className=\"bg-white/80 backdrop-blur-lg border-b border-slate-200 sticky top-0 z-50\">
-        <div className=\"max-w-7xl mx-auto px-6 py-4\">
-          <div className=\"flex items-center justify-between\">
-            <div className=\"flex items-center gap-3\">
-              <div className=\"w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center\">
-                <Bot className=\"w-6 h-6 text-white\" />
+      {/* Header */}
+      <header className="bg-white/80 backdrop-blur-lg border-b border-slate-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg">
+                <Bot className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className=\"text-2xl font-bold text-slate-800\" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>AI Trading Bot</h1>
-                <p className=\"text-sm text-slate-500\">Auto-Invest System</p>
+                <h1 className="text-2xl font-bold text-slate-800" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                  AI Trading Bot
+                </h1>
+                <p className="text-sm text-slate-500">Intelligent Market Analysis System</p>
               </div>
             </div>
-            <div className=\"flex items-center gap-4\">
-              <div className=\"flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-100\">
+            
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-100">
                 <Activity className={`w-4 h-4 ${status.bot_active ? 'text-green-500 animate-pulse' : 'text-slate-400'}`} />
-                <span className=\"text-sm font-medium\">{status.bot_active ? 'Active' : 'Inactive'}</span>
+                <span className="text-sm font-medium text-slate-700">
+                  {status.bot_active ? 'Active' : 'Inactive'}
+                </span>
               </div>
-              <div className=\"flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-100\">
-                <Bot className={`w-4 h-4 ${status.angel_one_connected ? 'text-yellow-500' : 'text-slate-400'}`} />
-                <span className=\"text-sm font-medium\">{status.angel_one_connected ? 'Connected' : 'Disconnected'}</span>
+              
+              <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-100">
+                <Zap className={`w-4 h-4 ${status.angel_one_connected ? 'text-yellow-500' : 'text-slate-400'}`} />
+                <span className="text-sm font-medium text-slate-700">
+                  {status.angel_one_connected ? 'Connected' : 'Disconnected'}
+                </span>
               </div>
             </div>
           </div>
         </div>
       </header>
 
-      <main className=\"max-w-7xl mx-auto px-6 py-8\">
-        <div className=\"grid grid-cols-1 md:grid-cols-4 gap-6 mb-8\">
-          <Card className=\"bg-white/90 backdrop-blur\">
-            <CardHeader className=\"pb-3\">
-              <CardTitle className=\"text-lg flex items-center gap-2\"><Wallet className=\"w-5 h-5 text-green-600\" />Portfolio</CardTitle>
+      <main className="max-w-7xl mx-auto px-6 py-8">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <Card data-testid="portfolio-value-card" className="bg-white/90 backdrop-blur border-slate-200 hover:shadow-xl transition-all duration-300">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg font-semibold text-slate-700">Portfolio Value</CardTitle>
+                <Wallet className="w-5 h-5 text-green-600" />
+              </div>
             </CardHeader>
             <CardContent>
-              <p className=\"text-3xl font-bold text-green-600\" style={{ fontFamily: 'Space Grotesk' }}>{formatCurrency(calculatePortfolioValue())}</p>
-              <p className=\"text-sm text-slate-500\">{portfolio.holdings.length} holdings</p>
+              <p className="text-3xl font-bold text-green-600" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                {formatCurrency(calculatePortfolioValue())}
+              </p>
+              <p className="text-sm text-slate-500 mt-1">{portfolio.holdings.length} holdings</p>
             </CardContent>
           </Card>
-          <Card className=\"bg-white/90\">
-            <CardHeader className=\"pb-3\"><CardTitle className=\"text-lg\">Watchlist</CardTitle></CardHeader>
+
+          <Card data-testid="watchlist-card" className="bg-white/90 backdrop-blur border-slate-200 hover:shadow-xl transition-all duration-300">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg font-semibold text-slate-700">Watchlist</CardTitle>
+                <TrendingUp className="w-5 h-5 text-blue-600" />
+              </div>
+            </CardHeader>
             <CardContent>
-              <p className=\"text-3xl font-bold text-blue-600\" style={{ fontFamily: 'Space Grotesk' }}>{watchlist.length}</p>
-              <p className=\"text-sm text-slate-500\">Items</p>
+              <p className="text-3xl font-bold text-blue-600" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                {status.watchlist_symbols || 0}
+              </p>
+              <p className="text-sm text-slate-500 mt-1">Symbols monitored</p>
             </CardContent>
           </Card>
-          <Card className=\"bg-white/90\">
-            <CardHeader className=\"pb-3\"><CardTitle className=\"text-lg\">Analyses</CardTitle></CardHeader>
+
+          <Card data-testid="analyses-card" className="bg-white/90 backdrop-blur border-slate-200 hover:shadow-xl transition-all duration-300">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg font-semibold text-slate-700">Analyses</CardTitle>
+                <BarChart3 className="w-5 h-5 text-indigo-600" />
+              </div>
+            </CardHeader>
             <CardContent>
-              <p className=\"text-3xl font-bold text-indigo-600\" style={{ fontFamily: 'Space Grotesk' }}>{status.total_analyses || 0}</p>
+              <p className="text-3xl font-bold text-indigo-600" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                {status.total_analyses || 0}
+              </p>
+              <p className="text-sm text-slate-500 mt-1">Completed</p>
             </CardContent>
           </Card>
-          <Card className=\"bg-white/90\">
-            <CardHeader className=\"pb-3\"><CardTitle className=\"text-lg\">Schedule</CardTitle></CardHeader>
+
+          <Card data-testid="scheduler-card" className="bg-white/90 backdrop-blur border-slate-200 hover:shadow-xl transition-all duration-300">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg font-semibold text-slate-700">Scheduler</CardTitle>
+                <Activity className="w-5 h-5 text-green-600" />
+              </div>
+            </CardHeader>
             <CardContent>
-              <p className=\"text-3xl font-bold text-green-600\" style={{ fontFamily: 'Space Grotesk' }}>{config?.schedule_minutes || 0}m</p>
+              <p className="text-3xl font-bold text-green-600" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                {config?.schedule_minutes || 0}m
+              </p>
+              <p className="text-sm text-slate-500 mt-1">Analysis interval</p>
             </CardContent>
           </Card>
         </div>
 
-        <Tabs defaultValue=\"watchlist\" className=\"space-y-6\">
-          <TabsList className=\"bg-white/90 backdrop-blur border p-1\">
-            <TabsTrigger value=\"watchlist\"><TrendingUp className=\"w-4 h-4 mr-2\" />Watchlist & Strategy</TabsTrigger>
-            <TabsTrigger value=\"control\"><Settings className=\"w-4 h-4 mr-2\" />Control Panel</TabsTrigger>
-            <TabsTrigger value=\"notifications\"><Bell className=\"w-4 h-4 mr-2\" />Notifications</TabsTrigger>
-            <TabsTrigger value=\"logs\"><BarChart3 className=\"w-4 h-4 mr-2\" />Logs</TabsTrigger>
+        {/* Main Tabs */}
+        <Tabs defaultValue="portfolio" className="space-y-6">
+          <TabsList className="bg-white/90 backdrop-blur border border-slate-200 p-1">
+            <TabsTrigger value="portfolio" data-testid="portfolio-tab" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+              <Wallet className="w-4 h-4 mr-2" />
+              Portfolio
+            </TabsTrigger>
+            <TabsTrigger value="watchlist" data-testid="watchlist-tab" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+              <TrendingUp className="w-4 h-4 mr-2" />
+              Watchlist & Strategy
+            </TabsTrigger>
+            <TabsTrigger value="control" data-testid="control-tab" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+              <Settings className="w-4 h-4 mr-2" />
+              Control Panel
+            </TabsTrigger>
+            <TabsTrigger value="logs" data-testid="logs-tab" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+              <Eye className="w-4 h-4 mr-2" />
+              Analysis Logs
+            </TabsTrigger>
           </TabsList>
 
-          {/* Watchlist Tab */}
-          <TabsContent value=\"watchlist\">
-            <Card className=\"bg-white/90\">
+          {/* Portfolio Tab */}
+          <TabsContent value="portfolio">
+            <Card className="bg-white/90 backdrop-blur border-slate-200">
               <CardHeader>
-                <div className=\"flex items-center justify-between\">
+                <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Watchlist & Trading Strategy</CardTitle>
-                    <CardDescription>Portfolio items + watchlist with action settings</CardDescription>
+                    <CardTitle>Angel One Portfolio</CardTitle>
+                    <CardDescription>Your current holdings and positions</CardDescription>
                   </div>
-                  <Button onClick={() => setShowAddDialog(true)}><Plus className=\"w-4 h-4 mr-2\" />Add Symbol</Button>
+                  <Button onClick={fetchData} variant="outline">
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Refresh
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
-                {mergedItems.length === 0 ? (
-                  <div className=\"text-center py-12\">
-                    <TrendingUp className=\"w-16 h-16 text-slate-300 mx-auto mb-4\" />
-                    <p className=\"text-slate-500\">No items yet</p>
+                {portfolio.holdings.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Wallet className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                    <p className="text-slate-500 text-lg mb-2">No holdings found</p>
+                    <p className="text-slate-400 text-sm">Your Angel One portfolio will appear here</p>
                   </div>
                 ) : (
-                  <div className=\"space-y-3\">
-                    {mergedItems.map((item) => {
-                      const holding = portfolio.holdings.find(h => h.tradingsymbol === item.symbol);
-                      const ltp = holding ? parseFloat(holding.ltp || 0) : 0;
-                      const avgPrice = item.avg_price || (holding ? parseFloat(holding.averageprice || 0) : 0);
-                      const qty = item.quantity || (holding ? parseInt(holding.quantity || 0) : 0);
-                      const pnl = avgPrice > 0 ? ((ltp - avgPrice) / avgPrice) * 100 : 0;
+                  <div className="space-y-3">
+                    {portfolio.holdings.map((holding, idx) => {
+                      const quantity = parseInt(holding.quantity || 0);
+                      const avgPrice = parseFloat(holding.averageprice || 0);
+                      const ltp = parseFloat(holding.ltp || 0);
+                      const investedValue = avgPrice * quantity;
+                      const currentValue = ltp * quantity;
+                      const profitLoss = currentValue - investedValue;
+                      const profitLossPct = investedValue > 0 ? (profitLoss / investedValue) * 100 : 0;
 
                       return (
-                        <div key={item.id || item.symbol} className=\"p-4 rounded-lg border bg-white\">
-                          <div className=\"flex items-center justify-between mb-3\">
-                            <div className=\"flex-1\">
-                              <div className=\"flex items-center gap-2\">
-                                <h3 className=\"font-bold text-lg\">{item.symbol}</h3>
-                                <Badge variant={item.action === 'sip' ? 'default' : item.action === 'buy' ? 'secondary' : item.action === 'sell' ? 'destructive' : 'outline'}>
-                                  {item.action.toUpperCase()}
-                                </Badge>
-                                {holding && <Badge className=\"bg-green-100 text-green-800\">In Portfolio</Badge>}
-                              </div>
-                              <p className=\"text-sm text-slate-500\">{item.exchange} ??? {item.symbol_token}</p>
+                        <div
+                          key={idx}
+                          data-testid={`holding-${holding.tradingsymbol}`}
+                          className="p-4 rounded-lg border border-slate-200 bg-white hover:shadow-md transition-shadow"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <h3 className="font-bold text-slate-800 text-lg">{holding.tradingsymbol}</h3>
+                              <p className="text-sm text-slate-500">{holding.exchange}</p>
                             </div>
-                            <div className=\"flex gap-2\">
-                              <Button variant=\"ghost\" size=\"icon\" onClick={() => { setEditingItem(item); setShowEditDialog(true); }}>
-                                <Edit2 className=\"w-4 h-4\" />
-                              </Button>
-                              <Button variant=\"ghost\" size=\"icon\" onClick={() => deleteItem(item.symbol)} className=\"text-red-600\">
-                                <Trash2 className=\"w-4 h-4\" />
-                              </Button>
+                            <div className="text-right">
+                              <p className="text-2xl font-bold text-slate-800">{formatCurrency(ltp)}</p>
+                              <Badge className={profitLoss >= 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                                {profitLossPct >= 0 ? '+' : ''}{profitLossPct.toFixed(2)}%
+                              </Badge>
                             </div>
                           </div>
-                          {holding && (
-                            <div className=\"grid grid-cols-4 gap-4 text-sm border-t pt-3\">
-                              <div><p className=\"text-slate-500\">Qty</p><p className=\"font-semibold\">{qty}</p></div>
-                              <div><p className=\"text-slate-500\">Avg</p><p className=\"font-semibold\">{formatCurrency(avgPrice)}</p></div>
-                              <div><p className=\"text-slate-500\">LTP</p><p className=\"font-semibold\">{formatCurrency(ltp)}</p></div>
-                              <div><p className=\"text-slate-500\">P&L</p><p className={`font-semibold ${pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>{pnl.toFixed(2)}%</p></div>
+                          <Separator className="my-3" />
+                          <div className="grid grid-cols-4 gap-4 text-sm">
+                            <div>
+                              <p className="text-slate-500">Quantity</p>
+                              <p className="font-semibold text-slate-800">{quantity}</p>
                             </div>
-                          )}
+                            <div>
+                              <p className="text-slate-500">Avg Price</p>
+                              <p className="font-semibold text-slate-800">{formatCurrency(avgPrice)}</p>
+                            </div>
+                            <div>
+                              <p className="text-slate-500">Invested</p>
+                              <p className="font-semibold text-slate-800">{formatCurrency(investedValue)}</p>
+                            </div>
+                            <div>
+                              <p className="text-slate-500">Current Value</p>
+                              <p className="font-semibold text-slate-800">{formatCurrency(currentValue)}</p>
+                            </div>
+                          </div>
                         </div>
                       );
                     })}
@@ -304,124 +358,459 @@ function App() {
             </Card>
           </TabsContent>
 
-          {/* Control Panel */}
-          <TabsContent value=\"control\" className=\"space-y-6\">
-            <Card className=\"bg-white/90\">
-              <CardHeader><CardTitle>Bot Control</CardTitle></CardHeader>
-              <CardContent className=\"space-y-6\">
-                <div className=\"flex items-center justify-between p-4 rounded-lg bg-slate-50\">
-                  <div><Label className=\"font-semibold\">Bot Active</Label></div>
-                  <Switch checked={config?.is_active || false} onCheckedChange={(c) => updateConfig({ is_active: c })} />
-                </div>
-                <div className=\"flex items-center justify-between p-4 rounded-lg bg-yellow-50 border border-yellow-200\">
-                  <div><Label className=\"font-semibold text-yellow-800\">Auto Execute Trades</Label><p className=\"text-sm text-yellow-700\">?????? Will execute real orders</p></div>
-                  <Switch checked={config?.auto_execute_trades || false} onCheckedChange={(c) => updateConfig({ auto_execute_trades: c })} />
-                </div>
-                <Separator />
-                <div className=\"space-y-4\">
-                  <Label className=\"font-semibold\">Schedule (minutes)</Label>
-                  <div className=\"flex items-center gap-4\">
-                    <Slider value={[config?.schedule_minutes || 30]} onValueChange={([v]) => updateConfig({ schedule_minutes: v })} min={5} max={180} step={5} className=\"flex-1\" />
-                    <span className=\"text-lg font-bold text-blue-600 min-w-[80px] text-right\">{config?.schedule_minutes || 30} min</span>
+          {/* Watchlist & Strategy Tab */}
+          <TabsContent value="watchlist">
+            <Card className="bg-white/90 backdrop-blur border-slate-200">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Watchlist & Trading Strategy</CardTitle>
+                    <CardDescription>Configure SIP for ETFs and sell strategy for stocks</CardDescription>
                   </div>
+                  <Dialog open={showAddSymbol} onOpenChange={setShowAddSymbol}>
+                    <DialogTrigger asChild>
+                      <Button data-testid="add-symbol-btn" className="bg-gradient-to-r from-blue-600 to-indigo-600">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Symbol
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Add Symbol to Watchlist</DialogTitle>
+                        <DialogDescription>Enter stock/ETF details</DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 pt-4">
+                        <div className="space-y-2">
+                          <Label>Asset Type</Label>
+                          <Select
+                            value={newSymbol.asset_type}
+                            onValueChange={(value) => setNewSymbol({ ...newSymbol, asset_type: value })}
+                          >
+                            <SelectTrigger data-testid="asset-type-select">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="stock">Stock</SelectItem>
+                              <SelectItem value="etf">ETF</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Symbol</Label>
+                          <Input
+                            data-testid="symbol-input"
+                            placeholder="RELIANCE"
+                            value={newSymbol.symbol}
+                            onChange={(e) => setNewSymbol({ ...newSymbol, symbol: e.target.value })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Exchange</Label>
+                          <Select
+                            value={newSymbol.exchange}
+                            onValueChange={(value) => setNewSymbol({ ...newSymbol, exchange: value })}
+                          >
+                            <SelectTrigger data-testid="exchange-select">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="NSE">NSE</SelectItem>
+                              <SelectItem value="BSE">BSE</SelectItem>
+                              <SelectItem value="NFO">NFO</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Symbol Token</Label>
+                          <Input
+                            data-testid="symbol-token-input"
+                            placeholder="3045"
+                            value={newSymbol.symbol_token}
+                            onChange={(e) => setNewSymbol({ ...newSymbol, symbol_token: e.target.value })}
+                          />
+                          <p className="text-xs text-slate-500">Find token from Angel One API docs</p>
+                        </div>
+                        <Button data-testid="confirm-add-symbol-btn" onClick={addSymbol} className="w-full">
+                          Add to Watchlist
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 </div>
-                <div className=\"flex gap-3\">
-                  <Button onClick={triggerBot} className=\"flex-1 bg-gradient-to-r from-blue-600 to-indigo-600\"><Play className=\"w-4 h-4 mr-2\" />Run Now</Button>
-                  <Button onClick={fetchData} variant=\"outline\"><RefreshCw className=\"w-4 h-4\" /></Button>
-                </div>
-              </CardContent>
-            </Card>
+              </CardHeader>
+              <CardContent>
+                {watchlist.length === 0 ? (
+                  <div className="text-center py-12">
+                    <TrendingUp className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                    <p className="text-slate-500 text-lg mb-2">No symbols in watchlist</p>
+                    <p className="text-slate-400 text-sm">Add stocks or ETFs to configure trading strategies</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {watchlist.map((item) => (
+                      <div
+                        key={item.id}
+                        data-testid={`watchlist-item-${item.symbol}`}
+                        className="p-4 rounded-lg border border-slate-200 bg-white hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center">
+                              {item.asset_type === 'etf' ? <DollarSign className="w-5 h-5 text-white" /> : <TrendingUp className="w-5 h-5 text-white" />}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="font-semibold text-slate-800 text-lg">{item.symbol}</p>
+                                <Badge variant="outline">{item.asset_type.toUpperCase()}</Badge>
+                              </div>
+                              <p className="text-sm text-slate-500">{item.exchange} • Token: {item.symbol_token}</p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                setEditingItem(item);
+                                setShowEditDialog(true);
+                              }}
+                              className="text-blue-600 hover:bg-blue-50"
+                              data-testid={`edit-${item.symbol}-btn`}
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              data-testid={`remove-${item.symbol}-btn`}
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeSymbol(item.symbol)}
+                              className="text-red-600 hover:bg-red-50"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
 
-            <Card className=\"bg-white/90\">
-              <CardHeader><CardTitle className=\"flex items-center gap-2\"><Brain className=\"w-5 h-5\" />LLM Configuration</CardTitle></CardHeader>
-              <CardContent className=\"space-y-4\">
-                <div className=\"grid grid-cols-2 gap-4\">
-                  <div className=\"space-y-2\">
-                    <Label>Provider</Label>
-                    <Select value={config?.llm_provider || 'emergent'} onValueChange={(v) => updateConfig({ llm_provider: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent><SelectItem value=\"emergent\">Emergent LLM</SelectItem><SelectItem value=\"openai\">OpenAI</SelectItem></SelectContent>
-                    </Select>
+                        {/* Strategy Display */}
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          {item.asset_type === 'etf' && item.sip_config ? (
+                            <div className="p-3 rounded bg-green-50 border border-green-200">
+                              <p className="font-semibold text-green-800 mb-1">Auto-SIP</p>
+                              <p className="text-green-700">
+                                {item.sip_config.enabled ? `₹${item.sip_config.amount} every ${item.sip_config.frequency_days} days` : 'Disabled'}
+                              </p>
+                            </div>
+                          ) : null}
+                          
+                          {item.sell_strategy ? (
+                            <div className="p-3 rounded bg-red-50 border border-red-200">
+                              <p className="font-semibold text-red-800 mb-1">Sell Strategy</p>
+                              <p className="text-red-700">
+                                {item.sell_strategy.enabled ? `SL: ${item.sell_strategy.stop_loss_percent}% | TP: ${item.sell_strategy.target_profit_percent}%` : 'Disabled'}
+                              </p>
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div className=\"space-y-2\">
-                    <Label>Model</Label>
-                    <Select value={config?.llm_model || 'gpt-4o-mini'} onValueChange={(v) => updateConfig({ llm_model: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent><SelectItem value=\"gpt-4o-mini\">GPT-4o Mini</SelectItem><SelectItem value=\"gpt-4o\">GPT-4o</SelectItem><SelectItem value=\"gpt-5\">GPT-5</SelectItem></SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                {config?.llm_provider === 'openai' && (
-                  <Input type=\"password\" placeholder=\"OpenAI API Key\" value={config?.openai_api_key || ''} onChange={(e) => updateConfig({ openai_api_key: e.target.value })} />
                 )}
               </CardContent>
             </Card>
 
-            <Card className=\"bg-white/90\">
-              <CardHeader><CardTitle>Analysis Parameters</CardTitle><CardDescription>Tell LLM what to consider (free text)</CardDescription></CardHeader>
-              <CardContent>
-                <Textarea 
-                  rows={4} 
-                  placeholder=\"e.g., Consider P/E ratio below 25, RSI oversold conditions, volume spike above 50%, resistance levels, market sentiment...\"
-                  value={config?.analysis_parameters || ''}
-                  onChange={(e) => updateConfig({ analysis_parameters: e.target.value })}
-                  className=\"w-full\"
-                />
-              </CardContent>
-            </Card>
+            {/* Edit Strategy Dialog */}
+            <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Configure Strategy: {editingItem?.symbol}</DialogTitle>
+                  <DialogDescription>
+                    {editingItem?.asset_type === 'etf' ? 'Setup automatic SIP' : 'Configure sell strategy'}
+                  </DialogDescription>
+                </DialogHeader>
+                {editingItem && (
+                  <div className="space-y-6 pt-4">
+                    {/* SIP Config for ETFs */}
+                    {editingItem.asset_type === 'etf' && (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50">
+                          <Label className="font-semibold">Enable Auto-SIP</Label>
+                          <Switch
+                            checked={editingItem.sip_config?.enabled || false}
+                            onCheckedChange={(checked) => setEditingItem({
+                              ...editingItem,
+                              sip_config: { ...editingItem.sip_config, enabled: checked }
+                            })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>SIP Amount (₹)</Label>
+                          <Input
+                            type="number"
+                            value={editingItem.sip_config?.amount || 0}
+                            onChange={(e) => setEditingItem({
+                              ...editingItem,
+                              sip_config: { ...editingItem.sip_config, amount: parseFloat(e.target.value) }
+                            })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Frequency (days)</Label>
+                          <Input
+                            type="number"
+                            value={editingItem.sip_config?.frequency_days || 30}
+                            onChange={(e) => setEditingItem({
+                              ...editingItem,
+                              sip_config: { ...editingItem.sip_config, frequency_days: parseInt(e.target.value) }
+                            })}
+                          />
+                        </div>
+                      </div>
+                    )}
 
-            <Card className=\"bg-white/90\">
-              <CardHeader><CardTitle>Telegram</CardTitle></CardHeader>
-              <CardContent className=\"space-y-4\">
-                <div className=\"flex items-center justify-between p-4 rounded-lg bg-slate-50\">
-                  <Label>Enable Notifications</Label>
-                  <Switch checked={config?.enable_notifications || false} onCheckedChange={(c) => updateConfig({ enable_notifications: c })} />
+                    {/* Sell Strategy for all */}
+                    <div className="space-y-4">
+                      <Separator />
+                      <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50">
+                        <Label className="font-semibold">Enable Sell Strategy</Label>
+                        <Switch
+                          checked={editingItem.sell_strategy?.enabled || false}
+                          onCheckedChange={(checked) => setEditingItem({
+                            ...editingItem,
+                            sell_strategy: { ...editingItem.sell_strategy, enabled: checked }
+                          })}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Stop Loss %</Label>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            value={editingItem.sell_strategy?.stop_loss_percent || 5}
+                            onChange={(e) => setEditingItem({
+                              ...editingItem,
+                              sell_strategy: { ...editingItem.sell_strategy, stop_loss_percent: parseFloat(e.target.value) }
+                            })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Target Profit %</Label>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            value={editingItem.sell_strategy?.target_profit_percent || 15}
+                            onChange={(e) => setEditingItem({
+                              ...editingItem,
+                              sell_strategy: { ...editingItem.sell_strategy, target_profit_percent: parseFloat(e.target.value) }
+                            })}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50">
+                        <Label>Use LLM Signals</Label>
+                        <Switch
+                          checked={editingItem.sell_strategy?.use_llm_signals !== false}
+                          onCheckedChange={(checked) => setEditingItem({
+                            ...editingItem,
+                            sell_strategy: { ...editingItem.sell_strategy, use_llm_signals: checked }
+                          })}
+                        />
+                      </div>
+                    </div>
+
+                    <Button
+                      onClick={() => updateWatchlistItem(editingItem.symbol, editingItem)}
+                      className="w-full"
+                      data-testid="save-strategy-btn"
+                    >
+                      <Save className="w-4 h-4 mr-2" />
+                      Save Strategy
+                    </Button>
+                  </div>
+                )}
+              </DialogContent>
+            </Dialog>
+          </TabsContent>
+
+          {/* Control Panel */}
+          <TabsContent value="control" className="space-y-6">
+            <Card className="bg-white/90 backdrop-blur border-slate-200">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Bot className="w-5 h-5 text-blue-600" />
+                  Bot Control
+                </CardTitle>
+                <CardDescription>Activate or deactivate the trading bot</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between p-4 rounded-lg bg-slate-50">
+                  <div>
+                    <Label className="text-base font-semibold text-slate-700">Bot Status</Label>
+                    <p className="text-sm text-slate-500 mt-1">Enable or disable automated analysis</p>
+                  </div>
+                  <Switch
+                    data-testid="bot-toggle"
+                    checked={config?.is_active || false}
+                    onCheckedChange={(checked) => updateConfig({ is_active: checked })}
+                    className="data-[state=checked]:bg-green-600"
+                  />
                 </div>
-                <Input placeholder=\"Bot Token\" type=\"password\" value={config?.telegram_bot_token || ''} onChange={(e) => updateConfig({ telegram_bot_token: e.target.value })} />
-                <Input placeholder=\"Chat IDs (comma separated)\" value={config?.telegram_chat_ids?.join(', ') || ''} onChange={(e) => updateConfig({ telegram_chat_ids: e.target.value.split(',').map(id => id.trim()).filter(Boolean) })} />
+
+                <div className="flex items-center justify-between p-4 rounded-lg bg-yellow-50 border border-yellow-200">
+                  <div>
+                    <Label className="text-base font-semibold text-yellow-800">Auto Execute Trades</Label>
+                    <p className="text-sm text-yellow-700 mt-1">⚠️ Bot will execute buy/sell orders automatically</p>
+                  </div>
+                  <Switch
+                    data-testid="auto-trade-toggle"
+                    checked={config?.auto_execute_trades || false}
+                    onCheckedChange={(checked) => updateConfig({ auto_execute_trades: checked })}
+                    className="data-[state=checked]:bg-yellow-600"
+                  />
+                </div>
+
+                <Separator />
+
+                <div className="space-y-4">
+                  <Label className="text-base font-semibold text-slate-700">Schedule Frequency</Label>
+                  <div className="flex items-center gap-4">
+                    <Slider
+                      data-testid="schedule-slider"
+                      value={[config?.schedule_minutes || 30]}
+                      onValueChange={([value]) => updateConfig({ schedule_minutes: value })}
+                      min={5}
+                      max={180}
+                      step={5}
+                      className="flex-1"
+                    />
+                    <span className="text-lg font-bold text-blue-600 min-w-[80px] text-right">
+                      {config?.schedule_minutes || 30} min
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <Button
+                    data-testid="run-now-btn"
+                    onClick={triggerAnalysis}
+                    className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600"
+                  >
+                    <Play className="w-4 h-4 mr-2" />
+                    Run Analysis Now
+                  </Button>
+                  <Button
+                    data-testid="refresh-btn"
+                    onClick={fetchData}
+                    variant="outline"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Rest of control panel (LLM, Analysis Params, Telegram) - keeping original code */}
+            <Card className="bg-white/90 backdrop-blur border-slate-200">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Brain className="w-5 h-5 text-indigo-600" />
+                  LLM Configuration
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Provider</Label>
+                    <Select value={config?.llm_provider || 'emergent'} onValueChange={(value) => updateConfig({ llm_provider: value })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="emergent">Emergent LLM</SelectItem>
+                        <SelectItem value="openai">OpenAI</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Model</Label>
+                    <Select value={config?.llm_model || 'gpt-4o-mini'} onValueChange={(value) => updateConfig({ llm_model: value })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
+                        <SelectItem value="gpt-4o">GPT-4o</SelectItem>
+                        <SelectItem value="gpt-5">GPT-5</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                {config?.llm_provider === 'openai' && (
+                  <Input
+                    type="password"
+                    placeholder="OpenAI API Key"
+                    value={config?.openai_api_key || ''}
+                    onChange={(e) => updateConfig({ openai_api_key: e.target.value })}
+                  />
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white/90 backdrop-blur border-slate-200">
+              <CardHeader><CardTitle>Analysis Parameters</CardTitle></CardHeader>
+              <CardContent className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>P/E Ratio Threshold</Label>
+                  <Input type="number" value={config?.analysis_params?.pe_ratio_threshold || 25} onChange={(e) => updateConfig({ analysis_params: { ...config.analysis_params, pe_ratio_threshold: parseInt(e.target.value) } })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Volume Spike %</Label>
+                  <Input type="number" value={config?.analysis_params?.volume_spike_percentage || 50} onChange={(e) => updateConfig({ analysis_params: { ...config.analysis_params, volume_spike_percentage: parseInt(e.target.value) } })} />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white/90 backdrop-blur border-slate-200">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Bell className="w-5 h-5 text-yellow-600" />
+                  Telegram Notifications
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between p-4 rounded-lg bg-slate-50">
+                  <Label>Enable Notifications</Label>
+                  <Switch checked={config?.enable_notifications || false} onCheckedChange={(checked) => updateConfig({ enable_notifications: checked })} />
+                </div>
+                <Input placeholder="Bot Token" type="password" value={config?.telegram_bot_token || ''} onChange={(e) => updateConfig({ telegram_bot_token: e.target.value })} />
+                <Input placeholder="Chat IDs (comma separated)" value={config?.telegram_chat_ids?.join(', ') || ''} onChange={(e) => updateConfig({ telegram_chat_ids: e.target.value.split(',').map(id => id.trim()).filter(Boolean) })} />
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Notifications Tab */}
-          <TabsContent value=\"notifications\">
-            <Card className=\"bg-white/90\">
-              <CardHeader><CardTitle className=\"flex items-center gap-2\"><Bell className=\"w-5 h-5 text-yellow-600\" />Send Notification</CardTitle><CardDescription>Trigger manual Telegram notification</CardDescription></CardHeader>
-              <CardContent className=\"space-y-4\">
-                <Textarea 
-                  rows={6}
-                  placeholder=\"Enter your notification message...\"
-                  value={notificationMessage}
-                  onChange={(e) => setNotificationMessage(e.target.value)}
-                  className=\"w-full\"
-                />
-                <Button onClick={sendNotification} className=\"w-full\"><Send className=\"w-4 h-4 mr-2\" />Send Notification</Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Logs Tab */}
-          <TabsContent value=\"logs\">
-            <Card className=\"bg-white/90\">
-              <CardHeader><CardTitle>Analysis Logs</CardTitle><CardDescription>Recent bot decisions and actions</CardDescription></CardHeader>
+          {/* Analysis Logs */}
+          <TabsContent value="logs">
+            <Card className="bg-white/90 backdrop-blur border-slate-200">
+              <CardHeader>
+                <CardTitle>Analysis Logs</CardTitle>
+                <CardDescription>Recent LLM analysis results</CardDescription>
+              </CardHeader>
               <CardContent>
                 {logs.length === 0 ? (
-                  <div className=\"text-center py-12\"><BarChart3 className=\"w-16 h-16 text-slate-300 mx-auto mb-4\" /><p className=\"text-slate-500\">No logs yet</p></div>
+                  <div className="text-center py-12">
+                    <BarChart3 className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                    <p className="text-slate-500 text-lg mb-2">No analyses yet</p>
+                  </div>
                 ) : (
-                  <div className=\"space-y-4\">
+                  <div className="space-y-4">
                     {logs.map((log) => (
-                      <div key={log.id} className=\"p-4 rounded-lg border bg-white\">
-                        <div className=\"flex items-start justify-between mb-2\">
-                          <div className=\"flex items-center gap-3\">
-                            <Badge className={log.executed ? 'bg-green-100 text-green-800' : 'bg-slate-100'}>{log.llm_decision}</Badge>
-                            <span className=\"font-semibold\">{log.symbol}</span>
-                            <Badge variant=\"outline\">{log.action.toUpperCase()}</Badge>
-                            {log.executed && <Badge className=\"bg-blue-100 text-blue-800\">EXECUTED</Badge>}
+                      <div key={log.id} className="p-4 rounded-lg border bg-white">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <Badge className={log.signal === 'BUY' ? 'bg-green-100 text-green-800' : log.signal === 'SELL' ? 'bg-red-100 text-red-800' : 'bg-slate-100'}>
+                              {log.signal || 'N/A'}
+                            </Badge>
+                            <span className="font-semibold">{log.symbol}</span>
                           </div>
-                          <span className=\"text-xs text-slate-500\">{new Date(log.timestamp).toLocaleString()}</span>
+                          <span className="text-xs text-slate-500">{new Date(log.timestamp).toLocaleString()}</span>
                         </div>
-                        {log.order_id && <p className=\"text-xs text-slate-600 mb-2\">Order ID: {log.order_id}</p>}
-                        {log.error && <p className=\"text-xs text-red-600\">Error: {log.error}</p>}
+                        <p className="text-sm text-slate-600">{log.analysis_summary}</p>
                       </div>
                     ))}
                   </div>
@@ -431,55 +820,6 @@ function App() {
           </TabsContent>
         </Tabs>
       </main>
-
-      {/* Add Item Dialog */}
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Add Symbol</DialogTitle></DialogHeader>
-          <div className=\"space-y-4 pt-4\">
-            <Input placeholder=\"Symbol (e.g., RELIANCE)\" value={newItem.symbol} onChange={(e) => setNewItem({...newItem, symbol: e.target.value})} />
-            <Select value={newItem.exchange} onValueChange={(v) => setNewItem({...newItem, exchange: v})}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value=\"NSE\">NSE</SelectItem><SelectItem value=\"BSE\">BSE</SelectItem></SelectContent>
-            </Select>
-            <Input placeholder=\"Symbol Token\" value={newItem.symbol_token} onChange={(e) => setNewItem({...newItem, symbol_token: e.target.value})} />
-            <Select value={newItem.action} onValueChange={(v) => setNewItem({...newItem, action: v})}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value=\"hold\">Hold</SelectItem><SelectItem value=\"sip\">SIP</SelectItem><SelectItem value=\"buy\">Buy</SelectItem><SelectItem value=\"sell\">Sell</SelectItem></SelectContent>
-            </Select>
-            <Button onClick={addItem} className=\"w-full\">Add to Watchlist</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Item Dialog */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className=\"max-w-2xl\">
-          <DialogHeader><DialogTitle>Edit: {editingItem?.symbol}</DialogTitle></DialogHeader>
-          {editingItem && (
-            <div className=\"space-y-4 pt-4\">
-              <div className=\"space-y-2\">
-                <Label>Action</Label>
-                <Select value={editingItem.action} onValueChange={(v) => setEditingItem({...editingItem, action: v})}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value=\"hold\">Hold</SelectItem><SelectItem value=\"sip\">SIP</SelectItem><SelectItem value=\"buy\">Buy</SelectItem><SelectItem value=\"sell\">Sell</SelectItem></SelectContent>
-                </Select>
-              </div>
-              {editingItem.action === 'sip' && (
-                <>
-                  <div className=\"space-y-2\"><Label>SIP Amount (???)</Label><Input type=\"number\" value={editingItem.sip_amount || 0} onChange={(e) => setEditingItem({...editingItem, sip_amount: parseFloat(e.target.value)})} /></div>
-                  <div className=\"space-y-2\"><Label>Frequency (days)</Label><Input type=\"number\" value={editingItem.sip_frequency_days || 30} onChange={(e) => setEditingItem({...editingItem, sip_frequency_days: parseInt(e.target.value)})} /></div>
-                </>
-              )}
-              {editingItem.action === 'buy' && (
-                <div className=\"space-y-2\"><Label>Quantity</Label><Input type=\"number\" value={editingItem.quantity || 1} onChange={(e) => setEditingItem({...editingItem, quantity: parseInt(e.target.value)})} /></div>
-              )}
-              <div className=\"space-y-2\"><Label>Notes</Label><Textarea rows={3} value={editingItem.notes || ''} onChange={(e) => setEditingItem({...editingItem, notes: e.target.value})} /></div>
-              <Button onClick={updateItem} className=\"w-full\">Save Changes</Button>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
