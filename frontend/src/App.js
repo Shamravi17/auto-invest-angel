@@ -80,11 +80,22 @@ function App() {
       const updatedConfig = { ...config, ...updates };
       await axios.put(`${API}/config`, updatedConfig);
       setConfig(updatedConfig);
-      toast.success('Configuration updated successfully');
+      setTempConfig(updatedConfig);
+      setConfigChanged(false);
+      toast.success('Configuration saved successfully');
       fetchData();
     } catch (error) {
-      toast.error('Failed to update configuration');
+      toast.error('Failed to save configuration');
     }
+  };
+
+  const updateTempConfig = (updates) => {
+    setTempConfig({...tempConfig, ...updates});
+    setConfigChanged(true);
+  };
+
+  const saveConfig = async () => {
+    await updateConfig(tempConfig);
   };
 
   const addSymbol = async () => {
