@@ -766,3 +766,137 @@ async def sync_portfolio_to_watchlist():
         return {"success": True, "synced": synced, "message": f"Synced {synced} holdings to watchlist"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/analyze-portfolio")
+async def analyze_portfolio():
+    """Get LLM analysis of entire portfolio"""
+    try:
+        # Get portfolio
+        portfolio = await get_portfolio()
+        holdings = portfolio['holdings']
+        available_cash = portfolio['available_cash']
+        
+        if not holdings:
+            raise HTTPException(status_code=400, detail="No holdings found in portfolio")
+        
+        # Get config for LLM settings
+        config_doc = await db.bot_config.find_one({"_id": "main"})
+        config = BotConfig(**config_doc) if config_doc else BotConfig()
+        
+        # Prepare portfolio summary
+        total_investment = 0
+        total_current_value = 0
+        holdings_summary = []
+        
+        for holding in holdings:
+            symbol = holding.get('tradingsymbol')
+            qty = int(holding.get('quantity', 0))
+            avg_price = float(holding.get('averageprice', 0))
+            ltp = float(holding.get('ltp', 0))
+            investment = qty * avg_price
+            current_value = qty * ltp
+            pnl = current_value - investment
+            pnl_pct = (pnl / investment * 100) if investment > 0 else 0
+            
+            total_investment += investment
+            total_current_value += current_value
+            
+            holdings_summary.append({
+                "symbol": symbol,
+                "quantity": qty,
+                "avg_price": avg_price,
+                "ltp": ltp,
+                "investment": investment,
+                "current_value": current_value,
+                "pnl": pnl,
+                "pnl_pct": pnl_pct
+            })
+        
+        overall_pnl = total_current_value - total_investment
+        overall_pnl_pct = (overall_pnl / total_investment * 100) if total_investment > 0 else 0
+        
+        # Create LLM prompt
+        prompt = f"""
+You are a portfolio analyst. Analyze this investment portfolio and provide actionable recommendations.
+
+**PORTFOLIO SUMMARY**
+Total Investment: ₹{total_investment:,.2f}
+Current Value: ₹{total_current_value:,.2f}
+Overall P&L: ₹{overall_pnl:,.2f} ({overall_pnl_pct:.2f}%)
+Available Cash: ₹{available_cash:,.2f}
+
+**HOLDINGS** ({len(holdings)} stocks):
+"""
+        
+        for h in holdings_summary:
+            prompt += f"""
+- {h['symbol']}: Qty {h['quantity']} | Avg ₹{h['avg_price']:.2f} | LTP ₹{h['ltp']:.2f} | P&L: {h['pnl_pct']:.2f}%"""
+        
+        prompt += f"""
+
+**USER'S ANALYSIS PARAMETERS**:
+{config.analysis_parameters}
+
+**PROVIDE ANALYSIS ON**:
+1. **Portfolio Health**: Diversification, concentration risk, sector allocation
+2. **Performance Review**: Best & worst performers, reasons
+3. **Risk Assessment**: High-risk holdings, potential concerns
+4. **Recommendations**: 
+   - Which stocks to HOLD and continue SIP
+   - Which stocks to consider SELLING (with reasons)
+   - Which stocks to BUY MORE (averaging down/up)
+   - Any rebalancing suggestions
+5. **Cash Utilization**: How to deploy ₹{available_cash:,.2f} optimally
+
+Be specific, actionable, and data-driven. Limit to 500 words.
+"""
+        
+        # Get LLM analysis
+        api_key = config.openai_api_key if config.llm_provider == "openai" and config.openai_api_key else os.environ.get('EMERGENT_LLM_KEY')
+        
+        session_id = f"portfolio_analysis_{uuid.uuid4().hex[:8]}"
+        
+        chat = LlmChat(
+            api_key=api_key,
+            session_id=session_id,
+            system_message="You are an expert portfolio analyst providing comprehensive investment analysis."
+        )
+        
+        if config.llm_provider == "openai":
+            chat.with_model("openai", config.llm_model)
+        else:
+            chat.with_model("openai", config.llm_model)
+        
+        user_message = UserMessage(text=prompt)
+        llm_response = await chat.send_message(user_message)
+        
+        # Save analysis
+        analysis = {
+            "id": str(uuid.uuid4()),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "portfolio_summary": {
+                "total_investment": total_investment,
+                "current_value": total_current_value,
+                "overall_pnl": overall_pnl,
+                "overall_pnl_pct": overall_pnl_pct,
+                "available_cash": available_cash,
+                "holdings_count": len(holdings)
+            },
+            "holdings": holdings_summary,
+            "llm_analysis": llm_response,
+            "prompt": prompt
+        }
+        
+        await db.portfolio_analyses.insert_one(analysis)
+        
+        return analysis
+        
+    except Exception as e:
+        logger.error(f"Portfolio analysis error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/portfolio-analyses")
+async def get_portfolio_analyses(limit: int = 10):
+    """Get recent portfolio analyses"""
+    analyses = await db.portfolio_analyses.find({}, {"_id": 0}).sort("timestamp", -1).limit(limit).to_list(limit)
+    return analyses
