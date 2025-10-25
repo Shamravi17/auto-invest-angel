@@ -878,7 +878,7 @@ function App() {
                     </div>
 
                     <Button
-                      onClick={() => updateWatchlistItem(editingItem.symbol, editingItem)}
+                      onClick={() => updateWatchlistItem(editingItem.id, editingItem)}
                       className="w-full"
                       data-testid="save-strategy-btn"
                     >
