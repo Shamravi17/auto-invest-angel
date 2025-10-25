@@ -55,3 +55,7 @@ htmlcov/
 build/
 dist/
 *.egg-info/
+-e 
+# Environment files
+*.env
+*.env.*
