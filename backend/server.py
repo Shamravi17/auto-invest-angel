@@ -555,7 +555,7 @@ async def get_llm_decision(symbol: str, action: str, market_data: Dict, config: 
             pnl_pct = (pnl / investment * 100) if investment > 0 else 0
             
             # Get available balance from portfolio
-            available_balance = portfolio.get('available_cash', 0)
+            available_balance = portfolio.get('available_cash', 0) if portfolio else 0
             
             prompt = f"""
 You are a stock market analyst. Analyze this stock for SIP (Systematic Investment Plan) decision RIGHT NOW.
