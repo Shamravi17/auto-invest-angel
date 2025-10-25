@@ -292,6 +292,10 @@ function App() {
               <Wallet className="w-4 h-4 mr-2" />
               Portfolio
             </TabsTrigger>
+            <TabsTrigger value="analysis" data-testid="analysis-tab" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+              <Brain className="w-4 h-4 mr-2" />
+              Portfolio Analysis
+            </TabsTrigger>
             <TabsTrigger value="watchlist" data-testid="watchlist-tab" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
               <TrendingUp className="w-4 h-4 mr-2" />
               Watchlist & Strategy
