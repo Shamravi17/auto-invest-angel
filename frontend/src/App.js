@@ -369,7 +369,7 @@ function App() {
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold text-indigo-600" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-                {status.total_analyses || 0}
+                {status.analyses_completed || 0}
               </p>
               <p className="text-sm text-slate-500 mt-1">Completed</p>
             </CardContent>
