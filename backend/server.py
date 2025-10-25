@@ -514,10 +514,11 @@ async def execute_angel_one_order(symbol: str, transaction_type: str, quantity: 
         order_response = smart_api.placeOrder(order_params)
         execution_time = (datetime.now() - start_time).total_seconds() * 1000
         
+        logger.info(f"Order Response Type: {type(order_response)}")
         logger.info(f"Order Response: {order_response}")
         logger.info(f"Execution Time: {execution_time:.2f}ms")
         
-        # Check if response is valid
+        # Handle different response types
         if order_response is None:
             error_msg = "Angel One API returned None response"
             logger.error(error_msg)
@@ -538,6 +539,34 @@ async def execute_angel_one_order(symbol: str, transaction_type: str, quantity: 
                 "message": error_msg,
                 "response": None
             }
+        
+        # If response is a string (order ID), it's a success
+        if isinstance(order_response, str):
+            order_id = order_response
+            logger.info(f"✓ Order placed successfully!")
+            logger.info(f"  Order ID: {order_id}")
+            logger.info(f"=" * 50)
+            
+            await log_angel_one_api_call(
+                endpoint="/order/place",
+                method="POST",
+                request_data=order_params,
+                response_data={"order_id": order_id, "status": "success"},
+                status_code=200,
+                execution_time_ms=execution_time
+            )
+            
+            return {
+                "success": True,
+                "order_id": order_id,
+                "message": "Order placed successfully",
+                "response": {"order_id": order_id}
+            }
+        
+        # If response is not a dict, convert it
+        if not isinstance(order_response, dict):
+            logger.warning(f"Unexpected response type: {type(order_response)}")
+            order_response = {"raw_response": str(order_response)}
         
         # Log the order attempt
         status_code = 200 if order_response.get('status', False) else 400
