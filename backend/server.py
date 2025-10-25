@@ -327,7 +327,10 @@ You are an expert trading analyst making real-time trading decisions with TAX OP
 **USER'S ANALYSIS PARAMETERS**:
 {config.analysis_parameters}
 
-**AUTO SELL THRESHOLD**: {config.auto_sell_threshold_percent}% (if loss exceeds this, consider selling)
+**PROFIT THRESHOLD FOR SELLING**: {config.profit_threshold_percent}%
+**IMPORTANT RULE**: NEVER sell at a LOSS unless it's tax harvesting (with immediate re-buy)
+- If profit >= {config.profit_threshold_percent}%, consider selling to book profits
+- If loss, HOLD (do not sell) unless tax harvesting is triggered
 """
         
         # Tax harvesting section - only if toggle is enabled
