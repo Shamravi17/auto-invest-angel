@@ -276,7 +276,7 @@ function App() {
                                 </Badge>
                                 {holding && <Badge className=\"bg-green-100 text-green-800\">In Portfolio</Badge>}
                               </div>
-                              <p className=\"text-sm text-slate-500\">{item.exchange} • {item.symbol_token}</p>
+                              <p className=\"text-sm text-slate-500\">{item.exchange} ??? {item.symbol_token}</p>
                             </div>
                             <div className=\"flex gap-2\">
                               <Button variant=\"ghost\" size=\"icon\" onClick={() => { setEditingItem(item); setShowEditDialog(true); }}>
@@ -314,7 +314,7 @@ function App() {
                   <Switch checked={config?.is_active || false} onCheckedChange={(c) => updateConfig({ is_active: c })} />
                 </div>
                 <div className=\"flex items-center justify-between p-4 rounded-lg bg-yellow-50 border border-yellow-200\">
-                  <div><Label className=\"font-semibold text-yellow-800\">Auto Execute Trades</Label><p className=\"text-sm text-yellow-700\">⚠️ Will execute real orders</p></div>
+                  <div><Label className=\"font-semibold text-yellow-800\">Auto Execute Trades</Label><p className=\"text-sm text-yellow-700\">?????? Will execute real orders</p></div>
                   <Switch checked={config?.auto_execute_trades || false} onCheckedChange={(c) => updateConfig({ auto_execute_trades: c })} />
                 </div>
                 <Separator />
@@ -467,7 +467,7 @@ function App() {
               </div>
               {editingItem.action === 'sip' && (
                 <>
-                  <div className=\"space-y-2\"><Label>SIP Amount (₹)</Label><Input type=\"number\" value={editingItem.sip_amount || 0} onChange={(e) => setEditingItem({...editingItem, sip_amount: parseFloat(e.target.value)})} /></div>
+                  <div className=\"space-y-2\"><Label>SIP Amount (???)</Label><Input type=\"number\" value={editingItem.sip_amount || 0} onChange={(e) => setEditingItem({...editingItem, sip_amount: parseFloat(e.target.value)})} /></div>
                   <div className=\"space-y-2\"><Label>Frequency (days)</Label><Input type=\"number\" value={editingItem.sip_frequency_days || 30} onChange={(e) => setEditingItem({...editingItem, sip_frequency_days: parseInt(e.target.value)})} /></div>
                 </>
               )}
