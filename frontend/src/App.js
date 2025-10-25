@@ -43,6 +43,7 @@ function App() {
   const [credentialsChanged, setCredentialsChanged] = useState(false);
   const [watchlistFilter, setWatchlistFilter] = useState('all'); // all, sip, buy, sell, hold
   const [watchlistSort, setWatchlistSort] = useState('symbol'); // symbol, pnl, action
+  const [executedOrders, setExecutedOrders] = useState([]);
 
   useEffect(() => {
     fetchData();
