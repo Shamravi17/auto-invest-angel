@@ -626,16 +626,13 @@ REASONING: <brief 2-3 line explanation>
 Provide your recommendation based on fundamentals and technical analysis.
 """
         else:
-            # For buy or other actions
+            # For other actions
             prompt = f"""
 You are a stock market analyst. Analyze this stock for {action.upper()} action.
 
 **STOCK**: {symbol}
 **CURRENT PRICE**: ₹{market_data.get('ltp', 0):.2f}
-
-**PORTFOLIO CONTEXT**:
-- Current Quantity: {item.get('quantity', 0)}
-- Avg Price: ₹{item.get('avg_price', 0):.2f}
+**PORTFOLIO CONTEXT**: Quantity: {item.get('quantity', 0)}, Avg Price: ₹{item.get('avg_price', 0) or 0:.2f}
 
 **USER'S ANALYSIS PARAMETERS**:
 {config.analysis_parameters}
