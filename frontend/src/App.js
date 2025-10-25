@@ -54,6 +54,12 @@ function App() {
     }
   }, [config]);
 
+  useEffect(() => {
+    if (credentials && !tempCredentials) {
+      setTempCredentials({...credentials});
+    }
+  }, [credentials]);
+
   const fetchData = async () => {
     try {
       const [statusRes, configRes, watchlistRes, logsRes, portfolioRes, analysesRes, credsRes, llmLogsRes] = await Promise.all([
