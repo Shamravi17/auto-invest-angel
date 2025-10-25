@@ -508,7 +508,7 @@ function App() {
                         <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-4 border-b">
                           <div className="flex items-center justify-between mb-3">
                             <h3 className="text-lg font-bold text-slate-800">Portfolio Analysis</h3>
-                            <span className="text-sm text-slate-500">{new Date(analysis.timestamp).toLocaleString()}</span>
+                            <span className="text-sm text-slate-500">{new Date(analysis.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST</span>
                           </div>
                           
                           {/* Summary Stats */}
