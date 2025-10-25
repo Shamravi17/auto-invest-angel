@@ -402,20 +402,59 @@ async def get_portfolio():
     if not smart_api:
         raise HTTPException(status_code=401, detail="Angel One not authenticated")
     
+    start_time = datetime.now()
     try:
         holdings = smart_api.holding()
+        execution_time = (datetime.now() - start_time).total_seconds() * 1000
         
         if holdings['status']:
+            # Log successful portfolio fetch
+            await log_angel_one_api_call(
+                endpoint="/portfolio/holdings",
+                method="GET",
+                request_data=None,
+                response_data={"status": "success", "holdings_count": len(holdings.get('data', []))},
+                status_code=200,
+                execution_time_ms=execution_time
+            )
+            
             return {
                 "holdings": holdings['data'],
                 "available_cash": 10000.0  # Placeholder
             }
         else:
-            logger.error(f"Error fetching portfolio: {holdings.get('message')}")
-            raise HTTPException(status_code=500, detail=holdings.get('message', 'Unknown error'))
+            error_msg = holdings.get('message', 'Unknown error')
+            logger.error(f"Error fetching portfolio: {error_msg}")
+            
+            # Log failed portfolio fetch
+            await log_angel_one_api_call(
+                endpoint="/portfolio/holdings",
+                method="GET",
+                request_data=None,
+                response_data=holdings,
+                status_code=500,
+                error=error_msg,
+                execution_time_ms=execution_time
+            )
+            
+            raise HTTPException(status_code=500, detail=error_msg)
     except Exception as e:
-        logger.error(f"Error fetching portfolio: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        execution_time = (datetime.now() - start_time).total_seconds() * 1000
+        error_msg = str(e)
+        logger.error(f"Error fetching portfolio: {error_msg}")
+        
+        # Log exception
+        await log_angel_one_api_call(
+            endpoint="/portfolio/holdings",
+            method="GET",
+            request_data=None,
+            response_data=None,
+            status_code=500,
+            error=error_msg,
+            execution_time_ms=execution_time
+        )
+        
+        raise HTTPException(status_code=500, detail=error_msg)
 
 @app.get("/api/portfolio")
 async def get_portfolio_api():
