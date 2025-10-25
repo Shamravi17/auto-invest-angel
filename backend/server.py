@@ -473,6 +473,90 @@ async def get_portfolio():
 async def get_portfolio_api():
     return await get_portfolio()
 
+# ===== TRADE EXECUTION =====
+async def execute_angel_one_order(symbol: str, transaction_type: str, quantity: int, order_type: str = "MARKET") -> Dict:
+    """Execute order with Angel One API"""
+    if not smart_api or not auth_tokens:
+        await authenticate_angel_one()
+    
+    if not smart_api:
+        raise Exception("Angel One not authenticated")
+    
+    start_time = datetime.now()
+    try:
+        # Prepare order parameters
+        order_params = {
+            "variety": "NORMAL",
+            "tradingsymbol": symbol,
+            "symboltoken": "",  # Would need to fetch from watchlist
+            "transactiontype": transaction_type,  # BUY or SELL
+            "exchange": "NSE",
+            "ordertype": order_type,  # MARKET or LIMIT
+            "producttype": "DELIVERY",
+            "duration": "DAY",
+            "quantity": str(quantity)
+        }
+        
+        # For market orders, no price needed
+        # For limit orders, would need to add "price" parameter
+        
+        logger.info(f"Placing order: {transaction_type} {quantity} units of {symbol}")
+        
+        # Place order
+        order_response = smart_api.placeOrder(order_params)
+        execution_time = (datetime.now() - start_time).total_seconds() * 1000
+        
+        # Log the order
+        await log_angel_one_api_call(
+            endpoint="/order/place",
+            method="POST",
+            request_data=order_params,
+            response_data=order_response,
+            status_code=200 if order_response.get('status') else 400,
+            execution_time_ms=execution_time
+        )
+        
+        if order_response.get('status'):
+            order_id = order_response.get('data', {}).get('orderid', 'N/A')
+            logger.info(f"Order placed successfully: {order_id}")
+            return {
+                "success": True,
+                "order_id": order_id,
+                "message": order_response.get('message', 'Order placed'),
+                "response": order_response
+            }
+        else:
+            error_msg = order_response.get('message', 'Order failed')
+            logger.error(f"Order placement failed: {error_msg}")
+            return {
+                "success": False,
+                "order_id": None,
+                "message": error_msg,
+                "response": order_response
+            }
+            
+    except Exception as e:
+        execution_time = (datetime.now() - start_time).total_seconds() * 1000
+        error_msg = str(e)
+        logger.error(f"Order execution error: {error_msg}")
+        
+        await log_angel_one_api_call(
+            endpoint="/order/place",
+            method="POST",
+            request_data=order_params if 'order_params' in locals() else None,
+            response_data=None,
+            status_code=500,
+            error=error_msg,
+            execution_time_ms=execution_time
+        )
+        
+        return {
+            "success": False,
+            "order_id": None,
+            "message": error_msg,
+            "response": None
+        }
+
 # ===== BOT CONFIG =====
 @app.get("/api/config")
 async def get_config():
