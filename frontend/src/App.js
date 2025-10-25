@@ -41,12 +41,13 @@ function App() {
 
   const fetchData = async () => {
     try {
-      const [statusRes, configRes, watchlistRes, logsRes, portfolioRes] = await Promise.all([
+      const [statusRes, configRes, watchlistRes, logsRes, portfolioRes, analysesRes] = await Promise.all([
         axios.get(`${API}/status`),
         axios.get(`${API}/config`),
         axios.get(`${API}/watchlist`),
         axios.get(`${API}/logs?limit=20`),
-        axios.get(`${API}/portfolio`)
+        axios.get(`${API}/portfolio`),
+        axios.get(`${API}/portfolio-analyses?limit=5`)
       ]);
       
       setStatus(statusRes.data);
@@ -54,6 +55,7 @@ function App() {
       setWatchlist(watchlistRes.data);
       setLogs(logsRes.data);
       setPortfolio(portfolioRes.data);
+      setPortfolioAnalyses(analysesRes.data);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching data:', error);
