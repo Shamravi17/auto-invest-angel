@@ -177,8 +177,8 @@ class AngelOneAPILog(BaseModel):
 
 # ===== STARTUP & TTL SETUP =====
 @app.on_event("startup")
-async def setup_ttl_indexes():
-    """Setup TTL indexes for auto-deletion of old logs"""
+async def startup_tasks():
+    """Setup TTL indexes and initialize scheduler"""
     try:
         # TTL for Angel One API logs - delete after 7 days
         await db.angel_one_api_logs.create_index(
@@ -193,8 +193,16 @@ async def setup_ttl_indexes():
         )
         
         logger.info("TTL indexes created for logs (7-day retention)")
+        
+        # Initialize scheduler if bot is configured as active
+        config_doc = await db.bot_config.find_one({"_id": "main"})
+        if config_doc and config_doc.get('is_active', False):
+            config = BotConfig(**config_doc)
+            await schedule_bot(config)
+            logger.info(f"Bot scheduler initialized on startup (schedule_type: {config.schedule_type})")
+        
     except Exception as e:
-        logger.error(f"Failed to create TTL indexes: {str(e)}")
+        logger.error(f"Startup tasks error: {str(e)}")
 
 async def log_angel_one_api_call(
     endpoint: str,
