@@ -543,12 +543,13 @@ async def get_llm_decision(symbol: str, action: str, market_data: Dict, config: 
         
         # Build prompt based on action
         if action == "sip":
+            sip_amount = item.get('sip_amount') or 0
             prompt = f"""
 You are a stock market analyst. Analyze this stock for SIP investment.
 
 **STOCK**: {symbol}
 **CURRENT PRICE**: ₹{market_data.get('ltp', 0):.2f}
-**USER SIP AMOUNT**: ₹{item.get('sip_amount', 0):.2f}
+**USER SIP AMOUNT**: ₹{sip_amount:.2f}
 **FREQUENCY**: Every {item.get('sip_frequency_days', 30)} days
 
 **USER'S ANALYSIS PARAMETERS**:
