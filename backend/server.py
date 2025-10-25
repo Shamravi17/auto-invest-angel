@@ -1197,6 +1197,22 @@ async def run_trading_bot():
             logger.error(f"Failed to fetch portfolio: {str(e)}")
             portfolio = {"holdings": [], "available_cash": 0}
         
+        # Check minimum balance requirement
+        available_balance = portfolio.get('available_cash', 0)
+        MIN_BALANCE = 2000
+        
+        if available_balance < MIN_BALANCE:
+            error_msg = f"⚠️ Insufficient balance: ₹{available_balance:.2f} < ₹{MIN_BALANCE:.2f}. Bot execution aborted."
+            logger.error(error_msg)
+            
+            # Send notification if enabled
+            if config.enable_notifications:
+                await send_telegram_notification(f"🚫 **Bot Execution Aborted**\n\n{error_msg}\n\nPlease add funds to continue trading.", config)
+            
+            return
+        
+        logger.info(f"✓ Balance check passed: ₹{available_balance:.2f} (Min: ₹{MIN_BALANCE:.2f})")
+        
         # Process each watchlist item
         processed = 0
         skipped = 0
