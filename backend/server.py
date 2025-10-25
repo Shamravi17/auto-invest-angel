@@ -136,7 +136,7 @@ class ExecutedOrder(BaseModel):
     quantity: int
     price: float
     total_value: float
-    order_id: str
+    order_id: Optional[str] = None  # Can be None if order placement fails
     status: str  # SUCCESS, FAILED, PENDING
     notes: Optional[str] = ""
 
