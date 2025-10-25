@@ -175,6 +175,51 @@ class AngelOneAPILog(BaseModel):
     error: Optional[str] = None
     execution_time_ms: Optional[float] = None
 
+# ===== STARTUP & TTL SETUP =====
+@app.on_event("startup")
+async def setup_ttl_indexes():
+    """Setup TTL indexes for auto-deletion of old logs"""
+    try:
+        # TTL for Angel One API logs - delete after 7 days
+        await db.angel_one_api_logs.create_index(
+            "timestamp",
+            expireAfterSeconds=7 * 24 * 60 * 60  # 7 days
+        )
+        
+        # TTL for LLM prompt logs - delete after 7 days
+        await db.llm_prompt_logs.create_index(
+            "timestamp",
+            expireAfterSeconds=7 * 24 * 60 * 60  # 7 days
+        )
+        
+        logger.info("TTL indexes created for logs (7-day retention)")
+    except Exception as e:
+        logger.error(f"Failed to create TTL indexes: {str(e)}")
+
+async def log_angel_one_api_call(
+    endpoint: str,
+    method: str,
+    request_data: Optional[Dict] = None,
+    response_data: Optional[Dict] = None,
+    status_code: Optional[int] = None,
+    error: Optional[str] = None,
+    execution_time_ms: Optional[float] = None
+):
+    """Log Angel One API call for monitoring and debugging"""
+    try:
+        log_entry = AngelOneAPILog(
+            endpoint=endpoint,
+            method=method,
+            request_data=request_data,
+            response_data=response_data,
+            status_code=status_code,
+            error=error,
+            execution_time_ms=execution_time_ms
+        )
+        await db.angel_one_api_logs.insert_one(log_entry.model_dump())
+    except Exception as e:
+        logger.error(f"Failed to log Angel One API call: {str(e)}")
+
 # ===== CREDENTIALS MANAGEMENT =====
 async def get_credentials() -> Dict[str, str]:
     """Get decrypted credentials from database or environment"""
