@@ -112,6 +112,23 @@ function App() {
     await updateConfig(tempConfig);
   };
 
+  const updateTempCredentials = (updates) => {
+    setTempCredentials({...tempCredentials, ...updates});
+    setCredentialsChanged(true);
+  };
+
+  const saveCredentials = async () => {
+    try {
+      await axios.put(`${API}/credentials`, tempCredentials);
+      setCredentials(tempCredentials);
+      setCredentialsChanged(false);
+      toast.success('Credentials saved successfully. Angel One will reconnect.');
+      fetchData();
+    } catch (error) {
+      toast.error('Failed to save credentials');
+    }
+  };
+
   const addSymbol = async () => {
     if (!newSymbol.symbol || !newSymbol.symbol_token) {
       toast.error('Please enter both symbol and token');
