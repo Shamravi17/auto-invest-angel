@@ -248,6 +248,29 @@ async def execute_order(symbol: str, token: str, exchange: str, transaction_type
         logger.error(f"Exception placing order: {str(e)}")
         return {"success": False, "error": str(e)}
 
+async def calculate_profit_loss_after_charges(buy_price: float, sell_price: float, quantity: int) -> Dict[str, float]:
+    """Calculate net P&L after all charges"""
+    buy_value = buy_price * quantity
+    sell_value = sell_price * quantity
+    
+    # Charges
+    buy_brokerage = buy_value * 0.0003  # 0.03%
+    sell_brokerage = sell_value * 0.0003
+    stt = sell_value * 0.001  # 0.1% on sell
+    gst = (buy_brokerage + sell_brokerage) * 0.18
+    
+    total_charges = buy_brokerage + sell_brokerage + stt + gst
+    gross_pnl = sell_value - buy_value
+    net_pnl = gross_pnl - total_charges
+    net_pnl_pct = (net_pnl / buy_value) * 100 if buy_value > 0 else 0
+    
+    return {
+        "gross_pnl": gross_pnl,
+        "net_pnl": net_pnl,
+        "net_pnl_pct": net_pnl_pct,
+        "total_charges": total_charges
+    }
+
 # ===== LLM DECISION MAKING =====
 async def get_llm_trading_decision(item: Dict, market_data: Dict, config: BotConfig, portfolio_info: Dict) -> Dict[str, Any]:
     """Enhanced LLM decision with EXIT_AND_REENTER logic"""
