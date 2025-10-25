@@ -37,6 +37,10 @@ function App() {
   const [testTelegram, setTestTelegram] = useState({ bot_token: '', chat_ids: [''] });
   const [notificationMessage, setNotificationMessage] = useState('');
   const [testingLLM, setTestingLLM] = useState(false);
+  const [credentials, setCredentials] = useState(null);
+  const [llmLogs, setLlmLogs] = useState([]);
+  const [tempCredentials, setTempCredentials] = useState(null);
+  const [credentialsChanged, setCredentialsChanged] = useState(false);
 
   useEffect(() => {
     fetchData();
