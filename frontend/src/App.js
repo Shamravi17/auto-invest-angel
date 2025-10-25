@@ -936,6 +936,8 @@ function App() {
                         <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
                         <SelectItem value="gpt-4o">GPT-4o</SelectItem>
                         <SelectItem value="gpt-5">GPT-5</SelectItem>
+                        <SelectItem value="o1">O1</SelectItem>
+                        <SelectItem value="o1-mini">O1 Mini</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -943,11 +945,19 @@ function App() {
                 {config?.llm_provider === 'openai' && (
                   <Input
                     type="password"
-                    placeholder="OpenAI API Key"
+                    placeholder="OpenAI API Key (sk-...)"
                     value={config?.openai_api_key || ''}
                     onChange={(e) => updateConfig({ openai_api_key: e.target.value })}
                   />
                 )}
+                <Button 
+                  onClick={testLLMConnection} 
+                  variant="outline" 
+                  className="w-full"
+                  disabled={testingLLM}
+                >
+                  {testingLLM ? <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Testing...</> : <><Brain className="w-4 h-4 mr-2" />Test LLM Connection</>}
+                </Button>
               </CardContent>
             </Card>
 
