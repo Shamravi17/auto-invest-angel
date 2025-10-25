@@ -467,7 +467,7 @@ function App() {
               </div>
               {editingItem.action === 'sip' && (
                 <>
-                  <div className=\"space-y-2\"><Label>SIP Amount (\u20b9)</Label><Input type=\"number\" value={editingItem.sip_amount || 0} onChange={(e) => setEditingItem({...editingItem, sip_amount: parseFloat(e.target.value)})} /></div>
+                  <div className=\"space-y-2\"><Label>SIP Amount (₹)</Label><Input type=\"number\" value={editingItem.sip_amount || 0} onChange={(e) => setEditingItem({...editingItem, sip_amount: parseFloat(e.target.value)})} /></div>
                   <div className=\"space-y-2\"><Label>Frequency (days)</Label><Input type=\"number\" value={editingItem.sip_frequency_days || 30} onChange={(e) => setEditingItem({...editingItem, sip_frequency_days: parseInt(e.target.value)})} /></div>
                 </>
               )}
