@@ -912,13 +912,19 @@ async def run_trading_bot():
             await db.analysis_logs.insert_one(analysis_log.model_dump())
             
             # Execute trades if auto_execute is enabled
-            if config.auto_execute_trades and llm_result['decision'] in ["EXECUTE", "SELL", "EXIT_AND_REENTER"]:
+            if config.auto_execute_trades and llm_result['decision'] in ["EXECUTE", "SELL", "EXIT_AND_REENTER", "EXIT"]:
                 # Placeholder for actual trade execution
-                logger.info(f"Would execute trade: {llm_result['decision']} for {symbol}")
+                if llm_result['decision'] == "EXIT" and action == "sip":
+                    logger.info(f"Would execute SIP profit booking (EXIT): Sell {item.get('quantity', 0)} units of {symbol} at ₹{market_data.get('ltp', 0):.2f}")
+                else:
+                    logger.info(f"Would execute trade: {llm_result['decision']} for {symbol}")
             
             # Send notification
             if config.enable_notifications:
-                message = f"**{symbol}** - {action.upper()}\nDecision: {llm_result['decision']}\nReasoning: {llm_result['reasoning'][:200]}"
+                if llm_result['decision'] == "EXIT" and action == "sip":
+                    message = f"**{symbol}** - SIP PROFIT BOOKING 💰\nDecision: EXIT (Book Profit)\nAmount: ₹{llm_result['sip_amount']:.2f}\nReasoning: {llm_result['reasoning'][:200]}\n\n_Note: Will resume SIP in next cycle_"
+                else:
+                    message = f"**{symbol}** - {action.upper()}\nDecision: {llm_result['decision']}\nAmount: ₹{llm_result['sip_amount']:.2f}\nReasoning: {llm_result['reasoning'][:200]}"
                 await send_telegram_notification(message, config)
         
         logger.info(f"Trading bot completed - Processed: {processed}, Skipped (hold): {skipped}")
