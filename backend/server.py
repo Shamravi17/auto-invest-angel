@@ -46,7 +46,10 @@ current_session_id = None
 # ===== MODELS =====
 class BotConfig(BaseModel):
     is_active: bool = False
-    schedule_minutes: int = 30
+    schedule_type: str = "interval"  # interval, daily, hourly
+    schedule_minutes: int = 30  # For interval mode
+    schedule_time: Optional[str] = None  # For daily mode (HH:MM format)
+    schedule_hours_interval: Optional[int] = None  # For hourly mode
     llm_provider: str = "emergent"
     llm_model: str = "gpt-4o-mini"
     openai_api_key: Optional[str] = None
@@ -56,8 +59,8 @@ class BotConfig(BaseModel):
     auto_execute_trades: bool = False
     enable_tax_harvesting: bool = False
     tax_harvesting_loss_slab: float = 50000.0
-    auto_sell_threshold_percent: float = 10.0
-    minimum_gain_threshold_percent: float = 5.0
+    profit_threshold_percent: float = 15.0  # Minimum PROFIT % to consider selling
+    minimum_gain_threshold_percent: float = 5.0  # For exit/re-entry after charges
     analysis_parameters: str = "Consider P/E ratio, volume trends, RSI indicators, support/resistance levels, and overall market sentiment."
     last_updated: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
