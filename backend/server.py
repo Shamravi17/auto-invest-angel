@@ -641,7 +641,95 @@ async def get_llm_decision(symbol: str, action: str, market_data: Dict, config: 
             # Get available balance from portfolio
             available_balance = portfolio.get('available_cash', 0) if portfolio else 0
             
-            prompt = f"""
+            # STEP 1: Check if should EXIT (profit booking) - Only if position exists
+            should_exit = False
+            exit_reasoning = ""
+            
+            if quantity > 0 and current_price > 0:
+                exit_check_prompt = f"""
+You are a stock market analyst analyzing if this SIP position has reached its PEAK and should be EXITED for profit booking.
+
+**STOCK**: {symbol}
+**CURRENT PRICE**: ₹{current_price:.2f}
+**YOUR POSITION**:
+- Quantity: {quantity}
+- Average Price: ₹{avg_price:.2f}
+- Investment: ₹{investment:.2f}
+- Current Value: ₹{current_value:.2f}
+- **Profit: ₹{pnl:.2f} ({pnl_pct:+.2f}%)**
+
+**USER'S ANALYSIS PARAMETERS**:
+{config.analysis_parameters}
+
+**YOUR TASK**: Decide if this stock has reached MAXIMUM value and should be SOLD NOW for profit booking.
+
+**EXIT CRITERIA** (Check these):
+1. Stock price significantly overvalued (P/E ratio very high, price >> fair value)
+2. Technical indicators showing overbought (RSI > 70, hitting resistance)
+3. Profit already substantial (>50-100% gains) and risk of correction high
+4. Fundamental deterioration or sector headwinds
+5. Better opportunities elsewhere
+
+**IMPORTANT**: 
+- This is ONLY for profit booking when stock has peaked
+- After exit, SIP will resume in next cycle when price corrects
+- Be conservative - only exit if strong signals of overvaluation
+
+**RESPONSE FORMAT** (must follow exactly):
+EXIT_DECISION: YES or NO
+REASONING: <2-3 line explanation>
+
+**EXAMPLES**:
+- "EXIT_DECISION: YES\\nREASONING: Stock up 120% with RSI at 78. Fundamentals stretched with P/E at 45 vs industry avg 25. Clear overvaluation signals."
+- "EXIT_DECISION: NO\\nREASONING: Despite 40% gains, fundamentals remain strong. Growth trajectory intact. Hold and continue SIP."
+"""
+                
+                try:
+                    # Make exit check LLM call
+                    exit_session_id = f"{symbol}_sip_exit_check_{uuid.uuid4().hex[:8]}"
+                    exit_chat = LlmChat(
+                        api_key=api_key,
+                        session_id=exit_session_id,
+                        system_message="You are an expert at identifying peak valuations and profit booking opportunities."
+                    )
+                    exit_chat.with_model("openai", config.llm_model)
+                    exit_response = await exit_chat.send_message(UserMessage(text=exit_check_prompt))
+                    
+                    # Parse exit response
+                    for line in exit_response.split('\n'):
+                        if "EXIT_DECISION:" in line.upper():
+                            if "YES" in line.upper():
+                                should_exit = True
+                        if "REASONING:" in line:
+                            exit_reasoning = line.split("REASONING:")[-1].strip()
+                    
+                    # Log exit check
+                    try:
+                        exit_log = LLMPromptLog(
+                            symbol=symbol,
+                            action_type="sip_exit_check",
+                            full_prompt=exit_check_prompt,
+                            llm_response=exit_response,
+                            model_used=config.llm_model,
+                            decision_made="EXIT" if should_exit else "CONTINUE_SIP"
+                        )
+                        await db.llm_prompt_logs.insert_one(exit_log.model_dump())
+                    except Exception as log_err:
+                        logger.error(f"Failed to log exit check: {str(log_err)}")
+                    
+                except Exception as exit_err:
+                    logger.error(f"Exit check LLM error: {str(exit_err)}")
+                    should_exit = False
+            
+            # If should exit, return EXIT decision
+            if should_exit:
+                prompt = exit_check_prompt
+                response = f"SIP_ACTION: EXIT\nAMOUNT: {current_value:.2f}\nREASONING: {exit_reasoning}"
+            else:
+                # STEP 2: Normal SIP decision with detailed dynamic amount logic
+                price_ratio = (current_price / avg_price) if avg_price > 0 else 1.0
+                
+                prompt = f"""
 You are a stock market analyst. Analyze this stock for SIP (Systematic Investment Plan) decision RIGHT NOW.
 
 **STOCK**: {symbol}
@@ -650,43 +738,82 @@ You are a stock market analyst. Analyze this stock for SIP (Systematic Investmen
 **YOUR CURRENT POSITION**:
 - Quantity Held: {quantity}
 - Average Price: ₹{avg_price:.2f}
+- Price vs Avg: {((price_ratio - 1) * 100):+.1f}% (Current is {price_ratio:.2f}x of avg)
 - Investment: ₹{investment:.2f}
 - Current Value: ₹{current_value:.2f}
 - P&L: ₹{pnl:.2f} ({pnl_pct:+.2f}%)
 
 **AVAILABLE BALANCE**: ₹{available_balance:.2f}
+**BASE SIP AMOUNT**: ₹{sip_amount:.2f} (user's reference amount)
 
 **USER'S ANALYSIS PARAMETERS**:
 {config.analysis_parameters}
 
-**YOUR TASK**: Analyze market conditions RIGHT NOW and decide one of the following:
+**YOUR TASK**: Decide SIP amount with SMART DYNAMIC ADJUSTMENT based on price levels and indicators.
 
-1. **SKIP** - Don't invest today (market conditions unfavorable)
-2. **EXECUTE** - Invest today with DYNAMIC amount based on current price level
-3. **EXIT** - Book profit if stock has reached peak/max value (sell all holdings)
+**CRITICAL: DYNAMIC AMOUNT LOGIC** (Apply this strictly):
 
-**DYNAMIC SIP STRATEGY**:
-- When price is LOW (below avg or support): Suggest HIGHER amount (e.g., 1.5x-2x base SIP)
-- When price is HIGH (above avg or resistance): Suggest LOWER amount (e.g., 0.5x-0.8x base SIP)
-- Consider technical indicators, RSI, support/resistance levels
+1. **Price SIGNIFICANTLY BELOW Average** (price 0.7x-0.9x of avg):
+   - Excellent buying opportunity
+   - Suggest 1.5x-2x base amount
+   - Example: Base ₹5000 → Suggest ₹7500-10000
 
-**EXIT STRATEGY**:
-- If stock has reached PEAK value based on fundamentals/technicals
-- If massive overvaluation detected
-- If profit booking is prudent
-- **IMPORTANT**: After EXIT, the next cycle will resume SIP (this is one-time profit booking)
+2. **Price MODERATELY BELOW Average** (price 0.9x-0.95x of avg):
+   - Good accumulation zone
+   - Suggest 1.2x-1.4x base amount
+   - Example: Base ₹5000 → Suggest ₹6000-7000
+
+3. **Price NEAR Average** (price 0.95x-1.05x of avg):
+   - Neutral zone
+   - Suggest 0.8x-1.2x base amount
+   - Example: Base ₹5000 → Suggest ₹4000-6000
+
+4. **Price MODERATELY ABOVE Average** (price 1.05x-1.2x of avg):
+   - Reduce investment, manage risk
+   - Suggest 0.5x-0.8x base amount
+   - Example: Base ₹5000 → Suggest ₹2500-4000
+
+5. **Price SIGNIFICANTLY ABOVE Average** (price >1.2x of avg):
+   - High risk zone, minimal investment
+   - Suggest 0.3x-0.5x base amount
+   - Example: Base ₹5000 → Suggest ₹1500-2500
+
+**ADDITIONAL INDICATORS TO CONSIDER**:
+- RSI: Low (<30) = increase amount, High (>70) = decrease amount
+- Volume: High buying volume = confidence, increase amount
+- Support/Resistance: Near support = increase, near resistance = decrease
+- Momentum: Strong uptrend = moderate increase, weak/falling = reduce
 
 **RESPONSE FORMAT** (must follow exactly):
-SIP_ACTION: SKIP or EXECUTE or EXIT
-AMOUNT: <suggested investment amount in rupees if EXECUTE, or total value if EXIT>
-REASONING: <2-3 line explanation with price context>
+SIP_ACTION: SKIP or EXECUTE
+AMOUNT: <dynamically calculated amount based on above rules>
+REASONING: <Explain price level, indicators, and why this specific amount>
 
-**EXAMPLES**:
-- Price ₹100, Avg ₹120: "SIP_ACTION: EXECUTE\\nAMOUNT: 8000\\nREASONING: Price 16% below avg - good accumulation opportunity. Increased SIP to ₹8000."
-- Price ₹150, Avg ₹100, Strong fundamentals: "SIP_ACTION: EXECUTE\\nAMOUNT: 3000\\nREASONING: Price above avg but momentum strong. Reduced SIP to ₹3000 to manage risk."
-- Price ₹200, Avg ₹100, Overvalued: "SIP_ACTION: EXIT\\nAMOUNT: {current_value:.0f}\\nREASONING: Stock up 100% and showing overvaluation signals. Book profit, will resume SIP on correction."
-- Weak fundamentals: "SIP_ACTION: SKIP\\nAMOUNT: 0\\nREASONING: Fundamentals deteriorating, avoid investment until clarity emerges."
+**EXAMPLES WITH DYNAMIC AMOUNTS**:
+- Price ₹85, Avg ₹100 (0.85x): "SIP_ACTION: EXECUTE\\nAMOUNT: 9000\\nREASONING: Price 15% below avg at ₹85 vs ₹100. RSI at 35 shows oversold. Increased to 1.8x (₹9000) to accumulate aggressively."
+
+- Price ₹105, Avg ₹100 (1.05x): "SIP_ACTION: EXECUTE\\nAMOUNT: 4500\\nREASONING: Price 5% above avg. Momentum positive but reducing to 0.9x (₹4500) to manage valuation risk."
+
+- Price ₹130, Avg ₹100 (1.3x): "SIP_ACTION: EXECUTE\\nAMOUNT: 2000\\nREASONING: Price 30% above avg showing extended valuations. RSI 68. Minimal investment at 0.4x (₹2000) to maintain discipline."
+
+- Price ₹95, Avg ₹100 (0.95x), RSI 75: "SIP_ACTION: SKIP\\nREASONING: Though price near avg, RSI 75 overbought. Market overheated. Skip this cycle."
+
+**REMEMBER**: Your amount suggestion should clearly reflect the price level dynamics!
 """
+                
+                try:
+                    session_id = f"{symbol}_sip_{uuid.uuid4().hex[:8]}"
+                    chat = LlmChat(
+                        api_key=api_key,
+                        session_id=session_id,
+                        system_message="You are an expert at dynamic SIP strategies with data-driven amount adjustments."
+                    )
+                    chat.with_model("openai", config.llm_model)
+                    response = await chat.send_message(UserMessage(text=prompt))
+                except Exception as llm_error:
+                    logger.error(f"SIP LLM error: {str(llm_error)}")
+                    response = f"SIP_ACTION: SKIP\nAMOUNT: 0\nREASONING: LLM error - {str(llm_error)[:100]}"
+
         elif action == "sell":
             current_value = item.get('quantity', 0) * market_data.get('ltp', 0)
             investment = item.get('quantity', 0) * item.get('avg_price', 0)
