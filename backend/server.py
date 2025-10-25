@@ -166,6 +166,99 @@ async def get_market_data(symbol: str, token: str, exchange: str = "NSE") -> Dic
         logger.error(f"Error fetching market data for {symbol}: {str(e)}")
         return {"symbol": symbol, "error": str(e)}
 
+# ===== PORTFOLIO FUNCTIONS =====
+async def get_portfolio():
+    """Get complete Angel One portfolio"""
+    try:
+        if not smart_api or not auth_tokens:
+            await angel_login()
+        
+        # Get holdings
+        holdings_response = smart_api.holding()
+        holdings = []
+        if holdings_response and holdings_response.get('status'):
+            holdings = holdings_response.get('data', [])
+        
+        # Get positions
+        positions_response = smart_api.position()
+        positions = []
+        if positions_response and positions_response.get('status'):
+            positions = positions_response.get('data', [])
+        
+        return {
+            "holdings": holdings,
+            "positions": positions,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Error fetching portfolio: {str(e)}")
+        return {"holdings": [], "positions": [], "error": str(e)}
+
+# ===== TRADE EXECUTION =====
+async def execute_buy_order(symbol: str, token: str, exchange: str, quantity: int, order_type: str = "MARKET"):
+    """Execute a buy order"""
+    try:
+        if not smart_api or not auth_tokens:
+            await angel_login()
+        
+        order_params = {
+            "variety": "NORMAL",
+            "tradingsymbol": symbol,
+            "symboltoken": token,
+            "transactiontype": "BUY",
+            "exchange": exchange,
+            "ordertype": order_type,
+            "producttype": "DELIVERY",
+            "duration": "DAY",
+            "quantity": str(quantity),
+            "price": "0"
+        }
+        
+        logger.info(f"📈 Placing BUY order for {symbol}, qty: {quantity}")
+        order_response = smart_api.placeOrder(order_params)
+        
+        if order_response and isinstance(order_response, str):
+            logger.info(f"✅ Buy order placed. Order ID: {order_response}")
+            return {"success": True, "order_id": order_response}
+        else:
+            logger.error(f"❌ Buy order failed: {order_response}")
+            return {"success": False, "error": str(order_response)}
+    except Exception as e:
+        logger.error(f"Exception placing buy order: {str(e)}")
+        return {"success": False, "error": str(e)}
+
+async def execute_sell_order(symbol: str, token: str, exchange: str, quantity: int, order_type: str = "MARKET"):
+    """Execute a sell order"""
+    try:
+        if not smart_api or not auth_tokens:
+            await angel_login()
+        
+        order_params = {
+            "variety": "NORMAL",
+            "tradingsymbol": symbol,
+            "symboltoken": token,
+            "transactiontype": "SELL",
+            "exchange": exchange,
+            "ordertype": order_type,
+            "producttype": "DELIVERY",
+            "duration": "DAY",
+            "quantity": str(quantity),
+            "price": "0"
+        }
+        
+        logger.info(f"📉 Placing SELL order for {symbol}, qty: {quantity}")
+        order_response = smart_api.placeOrder(order_params)
+        
+        if order_response and isinstance(order_response, str):
+            logger.info(f"✅ Sell order placed. Order ID: {order_response}")
+            return {"success": True, "order_id": order_response}
+        else:
+            logger.error(f"❌ Sell order failed: {order_response}")
+            return {"success": False, "error": str(order_response)}
+    except Exception as e:
+        logger.error(f"Exception placing sell order: {str(e)}")
+        return {"success": False, "error": str(e)}
+
 # ===== LLM ANALYSIS =====
 async def analyze_with_llm(market_data: Dict[str, Any], config: BotConfig) -> Dict[str, Any]:
     global current_session_id
