@@ -208,7 +208,7 @@ function App() {
 
   const triggerAnalysis = async () => {
     try {
-      await axios.post(`${API}/run-analysis`);
+      await axios.post(`${API}/run-bot`);
       toast.success('Analysis triggered! Check logs in a moment.');
       setTimeout(fetchData, 3000);
     } catch (error) {
