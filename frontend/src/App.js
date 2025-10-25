@@ -1476,6 +1476,118 @@ function App() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Executed Orders Tab */}
+          <TabsContent value="executed-orders">
+            <Card className="bg-white/90 backdrop-blur border-slate-200">
+              <CardHeader>
+                <CardTitle>Executed Orders & Performance</CardTitle>
+                <CardDescription>All orders placed by the bot with P&L tracking</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {executedOrders.length === 0 ? (
+                  <div className="text-center py-12">
+                    <TrendingUp className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                    <p className="text-slate-500 text-lg mb-2">No orders executed yet</p>
+                    <p className="text-slate-400 text-sm">Orders will appear here when auto-execute is enabled</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Summary Card */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                      <div>
+                        <p className="text-xs text-slate-600 mb-1">Total Orders</p>
+                        <p className="text-2xl font-bold text-blue-600">{executedOrders.length}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-600 mb-1">Successful</p>
+                        <p className="text-2xl font-bold text-green-600">
+                          {executedOrders.filter(o => o.status === 'SUCCESS').length}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-600 mb-1">Total Invested</p>
+                        <p className="text-2xl font-bold text-indigo-600">
+                          ₹{executedOrders
+                            .filter(o => o.transaction_type === 'BUY' && o.status === 'SUCCESS')
+                            .reduce((sum, o) => sum + o.total_value, 0)
+                            .toFixed(2)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-600 mb-1">Total Sold</p>
+                        <p className="text-2xl font-bold text-purple-600">
+                          ₹{executedOrders
+                            .filter(o => o.transaction_type === 'SELL' && o.status === 'SUCCESS')
+                            .reduce((sum, o) => sum + o.total_value, 0)
+                            .toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Orders List */}
+                    <div className="space-y-3">
+                      {executedOrders.slice(0, 50).map((order) => (
+                        <div key={order.id} className="p-4 rounded-lg border bg-white hover:shadow-md transition-shadow">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center gap-3">
+                              <Badge className={
+                                order.transaction_type === 'BUY' ? 'bg-green-100 text-green-800' : 
+                                'bg-red-100 text-red-800'
+                              }>
+                                {order.transaction_type}
+                              </Badge>
+                              <Badge variant="outline" className="text-xs">
+                                {order.order_type}
+                              </Badge>
+                              <span className="font-semibold text-lg">{order.symbol}</span>
+                              {order.status === 'SUCCESS' ? (
+                                <Badge className="bg-green-50 text-green-700 border-green-200">
+                                  ✓ Success
+                                </Badge>
+                              ) : (
+                                <Badge variant="destructive">
+                                  ✗ Failed
+                                </Badge>
+                              )}
+                            </div>
+                            <span className="text-xs text-slate-500">
+                              {new Date(order.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST
+                            </span>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
+                            <div>
+                              <p className="text-xs text-slate-500">Quantity</p>
+                              <p className="text-sm font-semibold">{order.quantity}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-slate-500">Price</p>
+                              <p className="text-sm font-semibold">₹{order.price.toFixed(2)}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-slate-500">Total Value</p>
+                              <p className="text-sm font-semibold">₹{order.total_value.toFixed(2)}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-slate-500">Order ID</p>
+                              <p className="text-xs font-mono">{order.order_id || 'N/A'}</p>
+                            </div>
+                          </div>
+                          
+                          {order.notes && (
+                            <div className="mt-2 p-2 bg-slate-50 rounded text-xs text-slate-600">
+                              <span className="font-semibold">LLM Reasoning:</span> {order.notes}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </main>
     </div>
