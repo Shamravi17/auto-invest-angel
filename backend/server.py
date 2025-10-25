@@ -114,7 +114,7 @@ async def angel_login():
         return False
 
 async def get_portfolio():
-    """Get complete Angel One portfolio"""
+    """Get complete Angel One portfolio with funds"""
     try:
         if not smart_api or not auth_tokens:
             await angel_login()
@@ -129,14 +129,22 @@ async def get_portfolio():
         if positions_response and positions_response.get('status'):
             positions = positions_response.get('data', [])
         
+        # Get funds/balance
+        funds_response = smart_api.rmsLimit()
+        available_cash = 0
+        if funds_response and funds_response.get('status'):
+            funds_data = funds_response.get('data', {})
+            available_cash = float(funds_data.get('availablecash', 0) or 0)
+        
         return {
             "holdings": holdings,
             "positions": positions,
+            "available_cash": available_cash,
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
     except Exception as e:
         logger.error(f"Error fetching portfolio: {str(e)}")
-        return {"holdings": [], "positions": [], "error": str(e)}
+        return {"holdings": [], "positions": [], "available_cash": 0, "error": str(e)}
 
 async def get_market_data(symbol: str, token: str, exchange: str = "NSE") -> Dict[str, Any]:
     try:
