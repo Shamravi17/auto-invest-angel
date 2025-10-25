@@ -474,21 +474,30 @@ async def get_portfolio_api():
     return await get_portfolio()
 
 # ===== TRADE EXECUTION =====
-async def execute_angel_one_order(symbol: str, transaction_type: str, quantity: int, order_type: str = "MARKET") -> Dict:
-    """Execute order with Angel One API"""
+async def execute_angel_one_order(symbol: str, transaction_type: str, quantity: int, symbol_token: str = "", order_type: str = "MARKET") -> Dict:
+    """Execute order with Angel One API with comprehensive logging"""
     if not smart_api or not auth_tokens:
         await authenticate_angel_one()
     
     if not smart_api:
-        raise Exception("Angel One not authenticated")
+        logger.error("Angel One API not authenticated - cannot place order")
+        return {
+            "success": False,
+            "order_id": None,
+            "message": "Angel One not authenticated",
+            "response": None
+        }
     
     start_time = datetime.now()
+    order_params = None
+    order_response = None
+    
     try:
         # Prepare order parameters
         order_params = {
             "variety": "NORMAL",
             "tradingsymbol": symbol,
-            "symboltoken": "",  # Would need to fetch from watchlist
+            "symboltoken": symbol_token,  # Token from watchlist
             "transactiontype": transaction_type,  # BUY or SELL
             "exchange": "NSE",
             "ordertype": order_type,  # MARKET or LIMIT
@@ -497,28 +506,60 @@ async def execute_angel_one_order(symbol: str, transaction_type: str, quantity: 
             "quantity": str(quantity)
         }
         
-        # For market orders, no price needed
-        # For limit orders, would need to add "price" parameter
-        
-        logger.info(f"Placing order: {transaction_type} {quantity} units of {symbol}")
+        logger.info(f"========== ANGEL ONE ORDER PLACEMENT ==========")
+        logger.info(f"Action: {transaction_type} {quantity} units of {symbol}")
+        logger.info(f"Order Parameters: {order_params}")
         
         # Place order
         order_response = smart_api.placeOrder(order_params)
         execution_time = (datetime.now() - start_time).total_seconds() * 1000
         
-        # Log the order
+        logger.info(f"Order Response: {order_response}")
+        logger.info(f"Execution Time: {execution_time:.2f}ms")
+        
+        # Check if response is valid
+        if order_response is None:
+            error_msg = "Angel One API returned None response"
+            logger.error(error_msg)
+            
+            await log_angel_one_api_call(
+                endpoint="/order/place",
+                method="POST",
+                request_data=order_params,
+                response_data=None,
+                status_code=500,
+                error=error_msg,
+                execution_time_ms=execution_time
+            )
+            
+            return {
+                "success": False,
+                "order_id": None,
+                "message": error_msg,
+                "response": None
+            }
+        
+        # Log the order attempt
+        status_code = 200 if order_response.get('status', False) else 400
         await log_angel_one_api_call(
             endpoint="/order/place",
             method="POST",
             request_data=order_params,
             response_data=order_response,
-            status_code=200 if order_response.get('status') else 400,
+            status_code=status_code,
             execution_time_ms=execution_time
         )
         
-        if order_response.get('status'):
-            order_id = order_response.get('data', {}).get('orderid', 'N/A')
-            logger.info(f"Order placed successfully: {order_id}")
+        # Check if order was successful
+        if order_response.get('status', False):
+            order_data = order_response.get('data', {})
+            order_id = order_data.get('orderid', 'N/A') if order_data else 'N/A'
+            
+            logger.info(f"✓ Order placed successfully!")
+            logger.info(f"  Order ID: {order_id}")
+            logger.info(f"  Message: {order_response.get('message', 'No message')}")
+            logger.info(f"=" * 50)
+            
             return {
                 "success": True,
                 "order_id": order_id,
@@ -526,25 +567,37 @@ async def execute_angel_one_order(symbol: str, transaction_type: str, quantity: 
                 "response": order_response
             }
         else:
-            error_msg = order_response.get('message', 'Order failed')
-            logger.error(f"Order placement failed: {error_msg}")
+            error_msg = order_response.get('message', 'Order failed - no error message')
+            error_code = order_response.get('errorcode', 'N/A')
+            
+            logger.error(f"✗ Order placement failed!")
+            logger.error(f"  Error Code: {error_code}")
+            logger.error(f"  Error Message: {error_msg}")
+            logger.error(f"  Full Response: {order_response}")
+            logger.error(f"=" * 50)
+            
             return {
                 "success": False,
                 "order_id": None,
-                "message": error_msg,
+                "message": f"{error_msg} (Code: {error_code})",
                 "response": order_response
             }
             
     except Exception as e:
         execution_time = (datetime.now() - start_time).total_seconds() * 1000
         error_msg = str(e)
-        logger.error(f"Order execution error: {error_msg}")
+        
+        logger.error(f"✗ Order execution exception!")
+        logger.error(f"  Exception: {error_msg}")
+        logger.error(f"  Request: {order_params}")
+        logger.error(f"  Response: {order_response}")
+        logger.error(f"=" * 50)
         
         await log_angel_one_api_call(
             endpoint="/order/place",
             method="POST",
-            request_data=order_params if 'order_params' in locals() else None,
-            response_data=None,
+            request_data=order_params,
+            response_data=order_response,
             status_code=500,
             error=error_msg,
             execution_time_ms=execution_time
@@ -554,7 +607,7 @@ async def execute_angel_one_order(symbol: str, transaction_type: str, quantity: 
             "success": False,
             "order_id": None,
             "message": error_msg,
-            "response": None
+            "response": order_response
         }
 
 # ===== BOT CONFIG =====
