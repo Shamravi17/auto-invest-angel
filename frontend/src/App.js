@@ -574,99 +574,89 @@ function App() {
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
                   <DialogTitle>Configure Strategy: {editingItem?.symbol}</DialogTitle>
-                  <DialogDescription>
-                    {editingItem?.asset_type === 'etf' ? 'Setup automatic SIP' : 'Configure sell strategy'}
-                  </DialogDescription>
+                  <DialogDescription>Set action and parameters</DialogDescription>
                 </DialogHeader>
                 {editingItem && (
                   <div className="space-y-6 pt-4">
-                    {/* SIP Config for ETFs */}
-                    {editingItem.asset_type === 'etf' && (
+                    {/* Action Selection */}
+                    <div className="space-y-2">
+                      <Label className="font-semibold">Action</Label>
+                      <Select
+                        value={editingItem.action}
+                        onValueChange={(value) => setEditingItem({ ...editingItem, action: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="hold">Hold (Monitor Only)</SelectItem>
+                          <SelectItem value="sip">SIP (Systematic Investment)</SelectItem>
+                          <SelectItem value="buy">Buy (One-time Purchase)</SelectItem>
+                          <SelectItem value="sell">Sell (Exit Position)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <Separator />
+
+                    {/* SIP Configuration */}
+                    {editingItem.action === 'sip' && (
                       <div className="space-y-4">
-                        <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50">
-                          <Label className="font-semibold">Enable Auto-SIP</Label>
-                          <Switch
-                            checked={editingItem.sip_config?.enabled || false}
-                            onCheckedChange={(checked) => setEditingItem({
-                              ...editingItem,
-                              sip_config: { ...editingItem.sip_config, enabled: checked }
-                            })}
-                          />
-                        </div>
                         <div className="space-y-2">
-                          <Label>SIP Amount (₹)</Label>
+                          <Label>SIP Amount (Rs.)</Label>
                           <Input
                             type="number"
-                            value={editingItem.sip_config?.amount || 0}
-                            onChange={(e) => setEditingItem({
-                              ...editingItem,
-                              sip_config: { ...editingItem.sip_config, amount: parseFloat(e.target.value) }
-                            })}
+                            placeholder="5000"
+                            value={editingItem.sip_amount || ''}
+                            onChange={(e) => setEditingItem({ ...editingItem, sip_amount: parseFloat(e.target.value) || 0 })}
                           />
+                          <p className="text-xs text-slate-500">LLM will adjust this based on market conditions</p>
                         </div>
                         <div className="space-y-2">
                           <Label>Frequency (days)</Label>
                           <Input
                             type="number"
-                            value={editingItem.sip_config?.frequency_days || 30}
-                            onChange={(e) => setEditingItem({
-                              ...editingItem,
-                              sip_config: { ...editingItem.sip_config, frequency_days: parseInt(e.target.value) }
-                            })}
+                            placeholder="30"
+                            value={editingItem.sip_frequency_days || 30}
+                            onChange={(e) => setEditingItem({ ...editingItem, sip_frequency_days: parseInt(e.target.value) || 30 })}
                           />
                         </div>
                       </div>
                     )}
 
-                    {/* Sell Strategy for all */}
-                    <div className="space-y-4">
-                      <Separator />
-                      <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50">
-                        <Label className="font-semibold">Enable Sell Strategy</Label>
-                        <Switch
-                          checked={editingItem.sell_strategy?.enabled || false}
-                          onCheckedChange={(checked) => setEditingItem({
-                            ...editingItem,
-                            sell_strategy: { ...editingItem.sell_strategy, enabled: checked }
-                          })}
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
+                    {/* Buy Configuration */}
+                    {editingItem.action === 'buy' && (
+                      <div className="space-y-4">
                         <div className="space-y-2">
-                          <Label>Stop Loss %</Label>
+                          <Label>Quantity</Label>
                           <Input
                             type="number"
-                            step="0.1"
-                            value={editingItem.sell_strategy?.stop_loss_percent || 5}
-                            onChange={(e) => setEditingItem({
-                              ...editingItem,
-                              sell_strategy: { ...editingItem.sell_strategy, stop_loss_percent: parseFloat(e.target.value) }
-                            })}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Target Profit %</Label>
-                          <Input
-                            type="number"
-                            step="0.1"
-                            value={editingItem.sell_strategy?.target_profit_percent || 15}
-                            onChange={(e) => setEditingItem({
-                              ...editingItem,
-                              sell_strategy: { ...editingItem.sell_strategy, target_profit_percent: parseFloat(e.target.value) }
-                            })}
+                            placeholder="10"
+                            value={editingItem.quantity || ''}
+                            onChange={(e) => setEditingItem({ ...editingItem, quantity: parseInt(e.target.value) || 0 })}
                           />
                         </div>
                       </div>
-                      <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50">
-                        <Label>Use LLM Signals</Label>
-                        <Switch
-                          checked={editingItem.sell_strategy?.use_llm_signals !== false}
-                          onCheckedChange={(checked) => setEditingItem({
-                            ...editingItem,
-                            sell_strategy: { ...editingItem.sell_strategy, use_llm_signals: checked }
-                          })}
-                        />
+                    )}
+
+                    {/* Sell Info */}
+                    {editingItem.action === 'sell' && (
+                      <div className="p-4 rounded-lg bg-yellow-50 border border-yellow-200">
+                        <p className="text-sm text-yellow-800">
+                          LLM will analyze market conditions and decide the optimal time to sell this position.
+                          The bot will monitor price trends, technical indicators, and your analysis parameters.
+                        </p>
                       </div>
+                    )}
+
+                    {/* Notes */}
+                    <div className="space-y-2">
+                      <Label>Notes (Optional)</Label>
+                      <Input
+                        placeholder="Add notes..."
+                        value={editingItem.notes || ''}
+                        onChange={(e) => setEditingItem({ ...editingItem, notes: e.target.value })}
+                      />
                     </div>
 
                     <Button
@@ -675,7 +665,7 @@ function App() {
                       data-testid="save-strategy-btn"
                     >
                       <Save className="w-4 h-4 mr-2" />
-                      Save Strategy
+                      Save Changes
                     </Button>
                   </div>
                 )}
