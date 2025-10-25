@@ -912,6 +912,38 @@ async def sync_portfolio_to_watchlist():
         logger.error(f"Portfolio sync error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/cleanup-duplicates")
+async def cleanup_duplicate_watchlist():
+    """Remove duplicate watchlist items, keeping the most recent one"""
+    try:
+        all_items = await db.watchlist.find({}).to_list(1000)
+        
+        # Group by symbol
+        symbol_map = {}
+        for item in all_items:
+            symbol = item['symbol']
+            if symbol not in symbol_map:
+                symbol_map[symbol] = []
+            symbol_map[symbol].append(item)
+        
+        # Remove duplicates - keep only the first one
+        removed = 0
+        for symbol, items in symbol_map.items():
+            if len(items) > 1:
+                # Sort by added_at to keep the oldest
+                items.sort(key=lambda x: x.get('added_at', ''))
+                # Remove all except first
+                for item in items[1:]:
+                    await db.watchlist.delete_one({"id": item['id']})
+                    removed += 1
+                    logger.info(f"Removed duplicate watchlist item: {symbol} (id: {item['id']})")
+        
+        return {"success": True, "removed": removed, "message": f"Removed {removed} duplicate items"}
+        
+    except Exception as e:
+        logger.error(f"Cleanup duplicates error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/executed-orders")
 async def get_executed_orders(limit: int = 50):
     orders = await db.executed_orders.find({}, {"_id": 0}).sort("timestamp", -1).limit(limit).to_list(limit)
