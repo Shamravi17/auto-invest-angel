@@ -753,7 +753,7 @@ function App() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {watchlist.map((item) => {
+                    {getFilteredAndSortedWatchlist().map((item) => {
                       // Find matching portfolio holding
                       const holding = portfolio.holdings.find(h => h.tradingsymbol === item.symbol);
                       const ltp = holding ? parseFloat(holding.ltp || 0) : 0;
