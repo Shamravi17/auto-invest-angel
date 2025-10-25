@@ -710,7 +710,9 @@ Provide your recommendation based on current market conditions and fundamentals.
         for line in lines:
             line_upper = line.upper()
             if "SIP_ACTION:" in line_upper:
-                if "EXECUTE" in line_upper and "EXIT" not in line_upper:
+                if "EXIT" in line_upper:
+                    decision = "EXIT"  # SIP profit booking
+                elif "EXECUTE" in line_upper:
                     decision = "EXECUTE"
                 else:
                     decision = "SKIP"
@@ -719,6 +721,11 @@ Provide your recommendation based on current market conditions and fundamentals.
                     decision = "EXIT_AND_REENTER"
                 elif "SELL" in line_upper:
                     decision = "SELL"
+                else:
+                    decision = "SKIP"
+            elif "BUY_ACTION:" in line_upper:
+                if "EXECUTE" in line_upper:
+                    decision = "EXECUTE"
                 else:
                     decision = "SKIP"
             elif "AMOUNT:" in line_upper:
