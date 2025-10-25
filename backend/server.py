@@ -252,9 +252,10 @@ async def authenticate_angel_one():
         totp = pyotp.TOTP(creds["totp_secret"])
         totp_code = totp.now()
         
+        # Use MPIN instead of password as per Angel One's new policy
         session = smart_api.generateSession(
             clientCode=creds["client_id"],
-            password=creds["password"],
+            password=creds["mpin"],  # Use MPIN as password
             totp=totp_code
         )
         
