@@ -65,7 +65,7 @@ function App() {
 
   const fetchData = async () => {
     try {
-      const [statusRes, configRes, watchlistRes, logsRes, portfolioRes, analysesRes, credsRes, llmLogsRes] = await Promise.all([
+      const [statusRes, configRes, watchlistRes, logsRes, portfolioRes, analysesRes, credsRes, llmLogsRes, ordersRes] = await Promise.all([
         axios.get(`${API}/status`),
         axios.get(`${API}/config`),
         axios.get(`${API}/watchlist`),
@@ -73,7 +73,8 @@ function App() {
         axios.get(`${API}/portfolio`).catch(e => ({ data: { holdings: [], positions: [] } })),
         axios.get(`${API}/portfolio-analyses?limit=5`),
         axios.get(`${API}/credentials`).catch(e => ({ data: null })),
-        axios.get(`${API}/llm-logs?limit=50`)
+        axios.get(`${API}/llm-logs?limit=50`),
+        axios.get(`${API}/executed-orders?limit=100`)
       ]);
       
       setStatus(statusRes.data);
@@ -84,6 +85,7 @@ function App() {
       setPortfolioAnalyses(analysesRes.data);
       setCredentials(credsRes.data);
       setLlmLogs(llmLogsRes.data);
+      setExecutedOrders(ordersRes.data);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching data:', error);
