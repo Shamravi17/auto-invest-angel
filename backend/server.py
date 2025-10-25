@@ -210,8 +210,8 @@ async def execute_order(symbol: str, token: str, exchange: str, transaction_type
         return {"success": False, "error": str(e)}
 
 # ===== LLM DECISION MAKING =====
-async def get_llm_trading_decision(item: Dict, market_data: Dict, config: BotConfig) -> Dict[str, Any]:
-    """Ask LLM if we should execute the action NOW"""
+async def get_llm_trading_decision(item: Dict, market_data: Dict, config: BotConfig, portfolio_info: Dict) -> Dict[str, Any]:
+    """Ask LLM if we should execute the action NOW and for SIP - at what amount"""
     global current_session_id
     
     try:
@@ -219,41 +219,112 @@ async def get_llm_trading_decision(item: Dict, market_data: Dict, config: BotCon
         symbol = item['symbol']
         ltp = market_data.get('ltp', 0)
         candles = market_data.get('candles', [])
+        available_cash = portfolio_info.get('available_cash', 0)
         
-        # Build prompt
+        # Build comprehensive prompt
         prompt = f"""
-You are an expert trading analyst. Analyze if we should execute a {action.upper()} action for {symbol} RIGHT NOW.
+You are an expert trading analyst making real-time trading decisions.
 
-Current Price: ₹{ltp}
-Recent 30-day candle data available: {len(candles)} days
+**SYMBOL**: {symbol}
+**CURRENT PRICE**: ₹{ltp}
+**ACTION TO EVALUATE**: {action.upper()}
+**AVAILABLE CASH IN ACCOUNT**: ₹{available_cash:,.2f}
 
-User's Analysis Parameters:
+**MARKET DATA**:
+- Recent 30-day candle data: {len(candles)} days available
+- Latest close prices: {[c[4] for c in candles[-5:]] if candles else 'N/A'}
+- Recent volume: {[c[5] for c in candles[-5:]] if candles else 'N/A'}
+
+**USER'S ANALYSIS PARAMETERS**:
 {config.analysis_parameters}
-
-Action to evaluate: {action.upper()}
 """
         
         if action == "sip":
-            prompt += f"\nSIP Amount: ₹{item.get('sip_amount', 0)}\nSIP Frequency: Every {item.get('sip_frequency_days', 30)} days\n"
-        elif action == "sell" and item.get('avg_price'):
-            avg_price = item['avg_price']
-            profit_loss = ((ltp - avg_price) / avg_price) * 100
-            prompt += f"\nAverage Buy Price: ₹{avg_price}\nCurrent P&L: {profit_loss:.2f}%\n"
+            suggested_sip = item.get('sip_amount', 0)
+            frequency = item.get('sip_frequency_days', 30)
+            prompt += f"""
+
+**SIP CONFIGURATION**:
+- User suggested SIP amount: ₹{suggested_sip}
+- Frequency: Every {frequency} days
+- This is a SYSTEMATIC INVESTMENT PLAN (SIP) - regular periodic investing
+
+**YOUR TASK**:
+1. Analyze if NOW is a good time to invest in this stock/ETF
+2. Consider the available cash: ₹{available_cash:,.2f}
+3. Decide the OPTIMAL SIP AMOUNT (can be different from user suggestion)
+4. The SIP amount should be:
+   - Within available cash
+   - Appropriate for current market conditions
+   - Suitable for long-term wealth creation
+
+**RESPOND WITH**:
+Line 1: EXECUTE or WAIT or SKIP
+Line 2: SIP_AMOUNT: <amount in rupees>
+Line 3-5: Brief reasoning (why this amount, why now/wait)
+
+Example responses:
+"EXECUTE
+SIP_AMOUNT: 5000
+Good entry point with RSI at 45, below 200-day MA. Recommended ₹5000 for balanced accumulation."
+
+OR
+
+"WAIT
+SIP_AMOUNT: 0
+Stock overbought (RSI 78). Wait for correction before SIP."
+"""
+        
+        elif action == "buy":
+            quantity = item.get('quantity', 1)
+            total_cost = ltp * quantity
+            prompt += f"""
+
+**BUY ORDER CONFIGURATION**:
+- Quantity to buy: {quantity} shares
+- Total cost: ₹{total_cost:,.2f}
+- Available cash: ₹{available_cash:,.2f}
+
+**YOUR TASK**:
+Analyze if NOW is the right time to BUY this stock.
+Consider: technical indicators, valuation, momentum, risk/reward.
+
+**RESPOND WITH**:
+Line 1: EXECUTE or WAIT or SKIP
+Lines 2-4: Brief reasoning
+"""
+        
+        elif action == "sell":
+            avg_price = item.get('avg_price', 0)
+            quantity = item.get('quantity', 0)
+            if avg_price > 0:
+                profit_loss_pct = ((ltp - avg_price) / avg_price) * 100
+                profit_loss_amt = (ltp - avg_price) * quantity
+                prompt += f"""
+
+**SELL DECISION**:
+- Current holding: {quantity} shares
+- Average buy price: ₹{avg_price}
+- Current price: ₹{ltp}
+- Profit/Loss: {profit_loss_pct:.2f}% (₹{profit_loss_amt:,.2f})
+
+**YOUR TASK**:
+Analyze if NOW is the right time to EXIT this position.
+Consider: profit target, stop loss, market conditions, opportunity cost.
+
+**RESPOND WITH**:
+Line 1: EXECUTE or WAIT or SKIP
+Lines 2-4: Brief reasoning
+"""
         
         prompt += """
 
-Based on:
-1. Current market conditions
-2. Technical indicators from recent data
-3. User's analysis parameters
-4. Risk-reward ratio
+**DECISION CRITERIA**:
+- EXECUTE: Strong conviction, good timing, favorable conditions
+- WAIT: Neutral, need more confirmation, slight unfavorable conditions
+- SKIP: Poor conditions, high risk, better opportunities elsewhere
 
-Provide your decision:
-- If you recommend executing the action NOW, respond with: EXECUTE
-- If you recommend waiting, respond with: WAIT
-- If conditions are unfavorable, respond with: SKIP
-
-Then explain your reasoning in 2-3 sentences.
+Make your decision based on data-driven analysis, not speculation.
 """
         
         # Initialize LLM
@@ -265,7 +336,7 @@ Then explain your reasoning in 2-3 sentences.
         chat = LlmChat(
             api_key=api_key,
             session_id=current_session_id,
-            system_message="You are an expert stock market analyst providing actionable trading decisions."
+            system_message="You are an expert stock market analyst providing actionable trading decisions with specific investment amounts."
         )
         
         if config.llm_provider == "openai":
@@ -278,13 +349,24 @@ Then explain your reasoning in 2-3 sentences.
         
         # Extract decision
         decision = "WAIT"
+        sip_amount = 0
+        
         if "EXECUTE" in response.upper():
             decision = "EXECUTE"
         elif "SKIP" in response.upper():
             decision = "SKIP"
         
+        # Extract SIP amount if action is SIP
+        if action == "sip" and "SIP_AMOUNT:" in response:
+            try:
+                amount_line = [line for line in response.split('\n') if 'SIP_AMOUNT:' in line][0]
+                sip_amount = float(amount_line.split(':')[1].strip().replace('₹', '').replace(',', ''))
+            except:
+                sip_amount = item.get('sip_amount', 0)
+        
         return {
             "decision": decision,
+            "sip_amount": sip_amount if action == "sip" else 0,
             "reasoning": response,
             "prompt": prompt
         }
@@ -293,6 +375,7 @@ Then explain your reasoning in 2-3 sentences.
         logger.error(f"LLM decision error: {str(e)}")
         return {
             "decision": "SKIP",
+            "sip_amount": 0,
             "reasoning": f"Error: {str(e)}",
             "prompt": ""
         }
