@@ -80,11 +80,21 @@ function App() {
     try {
       await axios.post(`${API}/watchlist`, newSymbol);
       toast.success(`${newSymbol.symbol} added to watchlist`);
-      setNewSymbol({ symbol: '', exchange: 'NSE', symbol_token: '', asset_type: 'stock' });
+      setNewSymbol({ symbol: '', exchange: 'NSE', symbol_token: '', action: 'hold' });
       setShowAddSymbol(false);
       fetchData();
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to add symbol');
+    }
+  };
+
+  const syncPortfolio = async () => {
+    try {
+      const res = await axios.post(`${API}/sync-portfolio`);
+      toast.success(res.data.message);
+      fetchData();
+    } catch (error) {
+      toast.error('Failed to sync portfolio');
     }
   };
 
