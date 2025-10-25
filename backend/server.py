@@ -448,44 +448,48 @@ Lines 2+: Reasoning
             response = f"SIP_ACTION: SKIP\nAMOUNT: 0\nERROR: {str(llm_error)}"
         
         # Parse response
-        decision = "WAIT"
+        decision = "SKIP"
         sip_amount = 0
         re_entry_price = 0
         tax_harvesting = "NO"
         
         lines = response.split('\n')
         for line in lines:
-            if "SIP_ACTION:" in line:
-                if "EXECUTE" in line.upper():
+            line_upper = line.upper()
+            if "SIP_ACTION:" in line_upper:
+                if "EXECUTE" in line_upper and "EXIT" not in line_upper:
                     decision = "EXECUTE"
-                elif "EXIT_AND_REENTER" in line.upper():
+                elif "EXIT_AND_REENTER" in line_upper or "EXIT AND REENTER" in line_upper:
                     decision = "EXIT_AND_REENTER"
-                elif "SKIP" in line.upper():
+                elif "SKIP" in line_upper:
                     decision = "SKIP"
-            elif "AMOUNT:" in line:
+            elif "AMOUNT:" in line_upper:
                 try:
-                    sip_amount = float(line.split(':')[1].strip().replace('₹', '').replace(',', ''))
+                    sip_amount = float(line.split(':')[1].strip().replace('₹', '').replace(',', '').replace('<','').replace('>',''))
                 except:
-                    sip_amount = item.get('sip_amount', 0)
-            elif "RE_ENTRY_PRICE:" in line or "RE-ENTRY PRICE:" in line:
+                    sip_amount = item.get('sip_amount', 0) if decision == "EXECUTE" else 0
+            elif "RE_ENTRY_PRICE:" in line_upper or "RE-ENTRY PRICE:" in line_upper:
                 try:
-                    re_entry_price = float(line.split(':')[1].strip().replace('₹', '').replace(',', ''))
+                    re_entry_price = float(line.split(':')[1].strip().replace('₹', '').replace(',', '').replace('<','').replace('>',''))
                 except:
                     pass
-            elif "TAX_HARVESTING:" in line:
-                if "YES" in line.upper():
+            elif "TAX_HARVESTING:" in line_upper or "TAX HARVESTING:" in line_upper:
+                if "YES" in line_upper:
                     tax_harvesting = "YES"
         
         # Log prompt & response
-        log_entry = LLMPromptLog(
-            symbol=symbol,
-            action_type=action,
-            full_prompt=prompt,
-            llm_response=response,
-            model_used=config.llm_model,
-            decision_made=decision
-        )
-        await db.llm_prompt_logs.insert_one(log_entry.model_dump())
+        try:
+            log_entry = LLMPromptLog(
+                symbol=symbol,
+                action_type=action,
+                full_prompt=prompt,
+                llm_response=response,
+                model_used=config.llm_model,
+                decision_made=decision
+            )
+            await db.llm_prompt_logs.insert_one(log_entry.model_dump())
+        except Exception as log_error:
+            logger.error(f"Failed to log prompt: {str(log_error)}")
         
         return {
             "decision": decision,
