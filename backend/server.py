@@ -50,13 +50,13 @@ class BotConfig(BaseModel):
     llm_provider: str = "emergent"
     llm_model: str = "gpt-4o-mini"
     openai_api_key: Optional[str] = None
-    custom_llm_url: Optional[str] = None
-    custom_llm_key: Optional[str] = None
     telegram_chat_ids: List[str] = []
     telegram_bot_token: Optional[str] = None
     enable_notifications: bool = True
     auto_execute_trades: bool = False
     enable_tax_harvesting: bool = False
+    tax_harvesting_loss_slab: float = 50000.0
+    auto_sell_threshold_percent: float = 10.0
     minimum_gain_threshold_percent: float = 5.0
     analysis_parameters: str = "Consider P/E ratio, volume trends, RSI indicators, support/resistance levels, and overall market sentiment."
     last_updated: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
