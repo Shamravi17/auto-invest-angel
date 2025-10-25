@@ -400,11 +400,23 @@ async def get_status():
     config_doc = await db.bot_config.find_one({"_id": "main"})
     is_active = config_doc.get('is_active', False) if config_doc else False
     
+    # Get watchlist count
+    watchlist_count = await db.watchlist.count_documents({})
+    
+    # Get analyses count (portfolio analyses)
+    analyses_count = await db.portfolio_analyses.count_documents({})
+    
+    # Get executed orders count
+    orders_count = await db.executed_orders.count_documents({})
+    
     return {
         "angel_one_connected": smart_api is not None and auth_tokens is not None,
         "bot_running": scheduler.running,
         "bot_active": is_active and scheduler.running,  # Both config active and scheduler running
-        "scheduled_jobs": len(scheduler.get_jobs())
+        "scheduled_jobs": len(scheduler.get_jobs()),
+        "watchlist_symbols": watchlist_count,
+        "analyses_completed": analyses_count,
+        "orders_executed": orders_count
     }
 
 # ===== ANGEL ONE API =====
