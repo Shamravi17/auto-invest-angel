@@ -96,11 +96,20 @@ async def angel_login():
         smart_api = SmartConnect(api_key=os.environ['ANGEL_TRADING_API_KEY'])
         totp_code = generate_totp()
         
-        response = smart_api.generateSession(
-            clientCode=os.environ['ANGEL_CLIENT_ID'],
-            password=os.environ['ANGEL_PASSWORD'],
-            totp=totp_code
-        )
+        # Try MPIN login first (new method)
+        try:
+            response = smart_api.generateSession(
+                clientCode=os.environ['ANGEL_CLIENT_ID'],
+                password=os.environ['ANGEL_MPIN'],
+                totp=totp_code
+            )
+        except:
+            # Fallback to password login
+            response = smart_api.generateSession(
+                clientCode=os.environ['ANGEL_CLIENT_ID'],
+                password=os.environ['ANGEL_PASSWORD'],
+                totp=totp_code
+            )
         
         if response.get('status'):
             auth_tokens = response['data']
