@@ -44,6 +44,19 @@ auth_tokens: Optional[Dict] = None
 current_session_id = None
 
 # ===== MODELS =====
+class SIPConfig(BaseModel):
+    enabled: bool = False
+    amount: float = 0
+    frequency_days: int = 30  # How often to invest (e.g., 30 days = monthly)
+    next_sip_date: Optional[str] = None
+
+class SellStrategy(BaseModel):
+    enabled: bool = False
+    stop_loss_percent: float = 5.0
+    target_profit_percent: float = 15.0
+    trailing_stop_percent: float = 0.0
+    use_llm_signals: bool = True
+
 class BotConfig(BaseModel):
     is_active: bool = False
     schedule_minutes: int = 30
@@ -53,6 +66,7 @@ class BotConfig(BaseModel):
     telegram_chat_ids: List[str] = []
     telegram_bot_token: Optional[str] = None
     enable_notifications: bool = True
+    auto_execute_trades: bool = False  # Safety: require manual approval by default
     analysis_params: Dict[str, Any] = {
         "pe_ratio_threshold": 25,
         "volume_spike_percentage": 50,
@@ -68,6 +82,9 @@ class Watchlist(BaseModel):
     symbol: str
     exchange: str = "NSE"
     symbol_token: Optional[str] = None
+    asset_type: str = "stock"  # stock or etf
+    sip_config: SIPConfig = Field(default_factory=SIPConfig)
+    sell_strategy: SellStrategy = Field(default_factory=SellStrategy)
     added_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 class AnalysisLog(BaseModel):
