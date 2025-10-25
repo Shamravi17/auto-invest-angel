@@ -324,9 +324,28 @@ You are an expert trading analyst making real-time trading decisions with TAX OP
 **USER'S ANALYSIS PARAMETERS**:
 {config.analysis_parameters}
 
-**TAX HARVESTING**: {"ENABLED - Consider tax implications" if config.enable_tax_harvesting else "DISABLED"}
-**MINIMUM GAIN THRESHOLD**: {config.minimum_gain_threshold_percent}% (after taxes & charges)
+**AUTO SELL THRESHOLD**: {config.auto_sell_threshold_percent}% (if loss exceeds this, consider selling)
 """
+        
+        # Tax harvesting section - only if toggle is enabled
+        if config.enable_tax_harvesting and holding:
+            unrealized_loss = (ltp - avg_price) * qty if holding else 0
+            prompt += f"""
+
+**TAX HARVESTING ENABLED**:
+- Current unrealized loss: ₹{unrealized_loss:,.2f}
+- Tax harvesting loss slab: ₹{config.tax_harvesting_loss_slab:,.2f}
+- Question: Should we do TAX HARVESTING now?
+  * Sell at loss to book tax benefit
+  * Re-buy immediately to maintain position
+  * Only if loss is significant (>= ₹{config.tax_harvesting_loss_slab})
+
+**IMPORTANT**: If recommending tax harvesting, respond with:
+TAX_HARVESTING: YES
+And I will execute SELL + immediate RE-BUY.
+"""
+        else:
+            prompt += "\n**TAX HARVESTING**: DISABLED (not considering tax loss harvesting)\n"
         
         if action == "sip":
             suggested_sip = item.get('sip_amount', 0)
