@@ -544,32 +544,64 @@ async def get_llm_decision(symbol: str, action: str, market_data: Dict, config: 
         # Build prompt based on action
         if action == "sip":
             sip_amount = item.get('sip_amount') or 0
+            quantity = item.get('quantity', 0)
+            avg_price = item.get('avg_price', 0)
+            current_price = market_data.get('ltp', 0)
+            
+            # Calculate current position value and P&L
+            investment = quantity * avg_price if quantity and avg_price else 0
+            current_value = quantity * current_price if quantity and current_price else 0
+            pnl = current_value - investment if investment > 0 else 0
+            pnl_pct = (pnl / investment * 100) if investment > 0 else 0
+            
+            # Get available balance from portfolio
+            available_balance = portfolio.get('available_cash', 0)
+            
             prompt = f"""
-You are a stock market analyst. Analyze this stock for SIP investment.
+You are a stock market analyst. Analyze this stock for SIP (Systematic Investment Plan) decision RIGHT NOW.
 
 **STOCK**: {symbol}
-**CURRENT PRICE**: ₹{market_data.get('ltp', 0):.2f}
-**USER SIP AMOUNT**: ₹{sip_amount:.2f}
-**FREQUENCY**: Every {item.get('sip_frequency_days', 30)} days
+**CURRENT PRICE**: ₹{current_price:.2f}
+
+**YOUR CURRENT POSITION**:
+- Quantity Held: {quantity}
+- Average Price: ₹{avg_price:.2f}
+- Investment: ₹{investment:.2f}
+- Current Value: ₹{current_value:.2f}
+- P&L: ₹{pnl:.2f} ({pnl_pct:+.2f}%)
+
+**AVAILABLE BALANCE**: ₹{available_balance:.2f}
 
 **USER'S ANALYSIS PARAMETERS**:
 {config.analysis_parameters}
 
-**TAX HARVESTING ENABLED**: {"YES" if config.enable_tax_harvesting else "NO"}
-{f"**TAX LOSS SLAB**: ₹{config.tax_harvesting_loss_slab:.2f}" if config.enable_tax_harvesting else ""}
+**YOUR TASK**: Analyze market conditions RIGHT NOW and decide one of the following:
 
-**YOUR TASK**: Decide whether to execute this SIP today.
+1. **SKIP** - Don't invest today (market conditions unfavorable)
+2. **EXECUTE** - Invest today with DYNAMIC amount based on current price level
+3. **EXIT** - Book profit if stock has reached peak/max value (sell all holdings)
+
+**DYNAMIC SIP STRATEGY**:
+- When price is LOW (below avg or support): Suggest HIGHER amount (e.g., 1.5x-2x base SIP)
+- When price is HIGH (above avg or resistance): Suggest LOWER amount (e.g., 0.5x-0.8x base SIP)
+- Consider technical indicators, RSI, support/resistance levels
+
+**EXIT STRATEGY**:
+- If stock has reached PEAK value based on fundamentals/technicals
+- If massive overvaluation detected
+- If profit booking is prudent
+- **IMPORTANT**: After EXIT, the next cycle will resume SIP (this is one-time profit booking)
 
 **RESPONSE FORMAT** (must follow exactly):
-SIP_ACTION: EXECUTE or SKIP
-AMOUNT: <amount in rupees>
-REASONING: <brief 2-3 line explanation>
+SIP_ACTION: SKIP or EXECUTE or EXIT
+AMOUNT: <suggested investment amount in rupees if EXECUTE, or total value if EXIT>
+REASONING: <2-3 line explanation with price context>
 
-**RULES**:
-1. Consider market conditions, stock fundamentals, technical indicators
-2. If fundamentals are weak or market is overheated, recommend SKIP
-3. For EXECUTE: Use the user's SIP amount unless market conditions suggest otherwise
-4. Be conservative - better to SKIP than invest in wrong conditions
+**EXAMPLES**:
+- Price ₹100, Avg ₹120: "SIP_ACTION: EXECUTE\\nAMOUNT: 8000\\nREASONING: Price 16% below avg - good accumulation opportunity. Increased SIP to ₹8000."
+- Price ₹150, Avg ₹100, Strong fundamentals: "SIP_ACTION: EXECUTE\\nAMOUNT: 3000\\nREASONING: Price above avg but momentum strong. Reduced SIP to ₹3000 to manage risk."
+- Price ₹200, Avg ₹100, Overvalued: "SIP_ACTION: EXIT\\nAMOUNT: {current_value:.0f}\\nREASONING: Stock up 100% and showing overvaluation signals. Book profit, will resume SIP on correction."
+- Weak fundamentals: "SIP_ACTION: SKIP\\nAMOUNT: 0\\nREASONING: Fundamentals deteriorating, avoid investment until clarity emerges."
 """
         elif action == "sell":
             current_value = item.get('quantity', 0) * market_data.get('ltp', 0)
