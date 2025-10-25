@@ -708,6 +708,43 @@ function App() {
                 </div>
               </CardHeader>
               <CardContent>
+                {/* Filter and Sort Controls */}
+                <div className="mb-4 p-4 bg-slate-50 rounded-lg border flex gap-4 items-center flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm font-medium">Filter:</Label>
+                    <Select value={watchlistFilter} onValueChange={setWatchlistFilter}>
+                      <SelectTrigger className="w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All</SelectItem>
+                        <SelectItem value="sip">SIP</SelectItem>
+                        <SelectItem value="buy">Buy</SelectItem>
+                        <SelectItem value="sell">Sell</SelectItem>
+                        <SelectItem value="hold">Hold</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm font-medium">Sort by:</Label>
+                    <Select value={watchlistSort} onValueChange={setWatchlistSort}>
+                      <SelectTrigger className="w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="symbol">Symbol</SelectItem>
+                        <SelectItem value="action">Action</SelectItem>
+                        <SelectItem value="pnl">P&L %</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="ml-auto text-sm text-slate-600">
+                    Showing {getFilteredAndSortedWatchlist().length} of {watchlist.length} items
+                  </div>
+                </div>
+                
                 {watchlist.length === 0 ? (
                   <div className="text-center py-12">
                     <TrendingUp className="w-16 h-16 text-slate-300 mx-auto mb-4" />
