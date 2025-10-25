@@ -184,10 +184,10 @@ function App() {
     }
   };
 
-  const updateWatchlistItem = async (symbol, updates) => {
+  const updateWatchlistItem = async (itemId, updates) => {
     try {
-      await axios.put(`${API}/watchlist/${symbol}`, updates);
-      toast.success(`${symbol} updated successfully`);
+      await axios.put(`${API}/watchlist/${itemId}`, updates);
+      toast.success(`${updates.symbol} updated successfully`);
       fetchData();
       setShowEditDialog(false);
       setEditingItem(null);
