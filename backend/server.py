@@ -64,6 +64,15 @@ class BotConfig(BaseModel):
     analysis_parameters: str = "Consider P/E ratio, volume trends, RSI indicators, support/resistance levels, and overall market sentiment."
     last_updated: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
+class Credentials(BaseModel):
+    angel_trading_api_key: Optional[str] = None
+    angel_client_id: Optional[str] = None
+    angel_password: Optional[str] = None
+    angel_totp_secret: Optional[str] = None
+    angel_mpin: Optional[str] = None
+    emergent_llm_key: Optional[str] = None
+    last_updated: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
 class WatchlistItem(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     symbol: str
