@@ -164,6 +164,17 @@ class AnalysisLog(BaseModel):
 class TelegramNotification(BaseModel):
     message: str
 
+class AngelOneAPILog(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    timestamp: str = Field(default_factory=get_ist_timestamp)
+    endpoint: str
+    method: str
+    request_data: Optional[Dict[str, Any]] = None
+    response_data: Optional[Dict[str, Any]] = None
+    status_code: Optional[int] = None
+    error: Optional[str] = None
+    execution_time_ms: Optional[float] = None
+
 # ===== CREDENTIALS MANAGEMENT =====
 async def get_credentials() -> Dict[str, str]:
     """Get decrypted credentials from database or environment"""
