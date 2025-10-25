@@ -1039,6 +1039,82 @@ function App() {
               </Card>
             )}
 
+            {/* Angel One Credentials */}
+            <Card className="bg-white/90 backdrop-blur border-slate-200">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="w-5 h-5 text-blue-600" />
+                  Angel One Credentials
+                </CardTitle>
+                <CardDescription>Configure your Angel One API credentials securely</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>API Key</Label>
+                    <Input
+                      type="text"
+                      placeholder="Enter Angel One API Key"
+                      value={tempCredentials?.angel_api_key || ''}
+                      onChange={(e) => updateTempCredentials({ angel_api_key: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Client ID</Label>
+                    <Input
+                      type="text"
+                      placeholder="Enter Client ID"
+                      value={tempCredentials?.angel_client_id || ''}
+                      onChange={(e) => updateTempCredentials({ angel_client_id: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Password</Label>
+                    <Input
+                      type="password"
+                      placeholder="Enter Password"
+                      value={tempCredentials?.angel_password || ''}
+                      onChange={(e) => updateTempCredentials({ angel_password: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>TOTP Secret</Label>
+                    <Input
+                      type="text"
+                      placeholder="Enter TOTP Secret"
+                      value={tempCredentials?.angel_totp_secret || ''}
+                      onChange={(e) => updateTempCredentials({ angel_totp_secret: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>MPIN</Label>
+                    <Input
+                      type="password"
+                      placeholder="Enter MPIN"
+                      value={tempCredentials?.angel_mpin || ''}
+                      onChange={(e) => updateTempCredentials({ angel_mpin: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                {credentialsChanged && (
+                  <div className="flex justify-end">
+                    <Button
+                      onClick={saveCredentials}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <Save className="w-4 h-4 mr-2" />
+                      Save Credentials
+                    </Button>
+                  </div>
+                )}
+
+                <p className="text-xs text-slate-500 mt-2">
+                  🔒 Credentials are encrypted and stored securely in the database. They will not be committed to Git.
+                </p>
+              </CardContent>
+            </Card>
+
             {/* Rest of control panel (LLM, Analysis Params, Telegram) - keeping original code */}
             <Card className="bg-white/90 backdrop-blur border-slate-200">
               <CardHeader>
