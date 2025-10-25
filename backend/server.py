@@ -881,7 +881,7 @@ async def run_trading_bot():
                 message = f"**{symbol}** - {action.upper()}\nDecision: {llm_result['decision']}\nReasoning: {llm_result['reasoning'][:200]}"
                 await send_telegram_notification(message, config)
         
-        logger.info("Trading bot completed")
+        logger.info(f"Trading bot completed - Processed: {processed}, Skipped (hold): {skipped}")
         
     except Exception as e:
         logger.error(f"Trading bot error: {str(e)}")
