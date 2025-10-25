@@ -991,17 +991,96 @@ async def run_trading_bot():
                 symbol=symbol,
                 action=action,
                 llm_decision=llm_result['decision'],
-                market_data=market_data
+                market_data=market_data,
+                executed=False,  # Will update to True if order placed
+                order_id=None
             )
-            await db.analysis_logs.insert_one(analysis_log.model_dump())
             
             # Execute trades if auto_execute is enabled
+            order_result = None
             if config.auto_execute_trades and llm_result['decision'] in ["EXECUTE", "SELL", "EXIT_AND_REENTER", "EXIT"]:
-                # Placeholder for actual trade execution
-                if llm_result['decision'] == "EXIT" and action == "sip":
-                    logger.info(f"Would execute SIP profit booking (EXIT): Sell {item.get('quantity', 0)} units of {symbol} at ₹{market_data.get('ltp', 0):.2f}")
-                else:
-                    logger.info(f"Would execute trade: {llm_result['decision']} for {symbol}")
+                try:
+                    # Determine transaction type and quantity
+                    if llm_result['decision'] == "EXIT" and action == "sip":
+                        # SIP profit booking - sell all holdings
+                        transaction_type = "SELL"
+                        quantity = item.get('quantity', 0)
+                        order_type_desc = "SIP_PROFIT_BOOKING"
+                        logger.info(f"Executing SIP profit booking (EXIT): Sell {quantity} units of {symbol}")
+                    
+                    elif llm_result['decision'] == "SELL":
+                        # Regular sell
+                        transaction_type = "SELL"
+                        quantity = item.get('quantity', 0)
+                        order_type_desc = "SELL"
+                        logger.info(f"Executing SELL: {quantity} units of {symbol}")
+                    
+                    elif llm_result['decision'] == "EXIT_AND_REENTER":
+                        # Tax harvesting - sell and will re-buy
+                        transaction_type = "SELL"
+                        quantity = item.get('quantity', 0)
+                        order_type_desc = "EXIT_AND_REENTER"
+                        logger.info(f"Executing EXIT_AND_REENTER: Sell {quantity} units of {symbol}")
+                    
+                    elif llm_result['decision'] == "EXECUTE" and action == "sip":
+                        # SIP execution - buy
+                        transaction_type = "BUY"
+                        # Calculate quantity from amount
+                        sip_amount = llm_result['sip_amount']
+                        current_price = market_data.get('ltp', 0)
+                        quantity = int(sip_amount / current_price) if current_price > 0 else 0
+                        order_type_desc = "SIP"
+                        logger.info(f"Executing SIP: Buy {quantity} units of {symbol} for ₹{sip_amount:.2f}")
+                    
+                    elif llm_result['decision'] == "EXECUTE" and action == "buy":
+                        # Buy execution
+                        transaction_type = "BUY"
+                        buy_amount = llm_result['sip_amount']  # Using same field
+                        current_price = market_data.get('ltp', 0)
+                        quantity = int(buy_amount / current_price) if current_price > 0 else 0
+                        order_type_desc = "BUY"
+                        logger.info(f"Executing BUY: {quantity} units of {symbol}")
+                    
+                    else:
+                        transaction_type = None
+                        quantity = 0
+                        order_type_desc = "UNKNOWN"
+                    
+                    # Place order if valid
+                    if transaction_type and quantity > 0:
+                        order_result = await execute_angel_one_order(symbol, transaction_type, quantity)
+                        
+                        # Log to executed_orders collection
+                        executed_order = ExecutedOrder(
+                            symbol=symbol,
+                            order_type=order_type_desc,
+                            transaction_type=transaction_type,
+                            quantity=quantity,
+                            price=market_data.get('ltp', 0),
+                            total_value=quantity * market_data.get('ltp', 0),
+                            order_id=order_result.get('order_id', 'N/A'),
+                            status="SUCCESS" if order_result.get('success') else "FAILED",
+                            notes=llm_result['reasoning'][:200]
+                        )
+                        await db.executed_orders.insert_one(executed_order.model_dump())
+                        
+                        # Update analysis log
+                        analysis_log.executed = order_result.get('success', False)
+                        analysis_log.order_id = order_result.get('order_id')
+                        if not order_result.get('success'):
+                            analysis_log.error = order_result.get('message', 'Order failed')
+                        
+                        logger.info(f"Order {'SUCCESS' if order_result.get('success') else 'FAILED'}: {symbol} - {order_result.get('message')}")
+                    else:
+                        logger.warning(f"Invalid order parameters: {symbol} - transaction_type={transaction_type}, quantity={quantity}")
+                        
+                except Exception as order_error:
+                    error_msg = str(order_error)
+                    logger.error(f"Order execution failed for {symbol}: {error_msg}")
+                    analysis_log.error = error_msg
+            
+            # Save analysis log
+            await db.analysis_logs.insert_one(analysis_log.model_dump())
             
             # Send notification
             if config.enable_notifications:
