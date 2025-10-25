@@ -235,6 +235,38 @@ function App() {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(value);
   };
 
+  const getFilteredAndSortedWatchlist = () => {
+    let filtered = [...watchlist];
+    
+    // Apply filter
+    if (watchlistFilter !== 'all') {
+      filtered = filtered.filter(item => item.action === watchlistFilter);
+    }
+    
+    // Apply sort
+    filtered.sort((a, b) => {
+      if (watchlistSort === 'symbol') {
+        return a.symbol.localeCompare(b.symbol);
+      } else if (watchlistSort === 'action') {
+        return a.action.localeCompare(b.action);
+      } else if (watchlistSort === 'pnl') {
+        const calcPnl = (item) => {
+          if (!item.quantity || !item.avg_price) return 0;
+          const portfolioItem = portfolio.holdings.find(h => h.tradingsymbol === item.symbol);
+          if (!portfolioItem) return 0;
+          const ltp = parseFloat(portfolioItem.ltp || 0);
+          const currentValue = item.quantity * ltp;
+          const investment = item.quantity * item.avg_price;
+          return currentValue - investment;
+        };
+        return calcPnl(b) - calcPnl(a); // Descending
+      }
+      return 0;
+    });
+    
+    return filtered;
+  };
+
   const calculatePortfolioValue = () => {
     const holdingsValue = portfolio.holdings.reduce((sum, h) => {
       return sum + (parseFloat(h.ltp || 0) * parseInt(h.quantity || 0));
