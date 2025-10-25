@@ -347,9 +347,15 @@ function App() {
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold text-green-600" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-                {config?.schedule_minutes || 0}m
+                {config?.schedule_type === 'daily' ? config?.schedule_time || 'N/A' : 
+                 config?.schedule_type === 'hourly' ? `${config?.schedule_hours_interval || 0}h` :
+                 `${config?.schedule_minutes || 0}m`}
               </p>
-              <p className="text-sm text-slate-500 mt-1">Analysis interval</p>
+              <p className="text-sm text-slate-500 mt-1">
+                {config?.schedule_type === 'daily' ? 'Daily at' : 
+                 config?.schedule_type === 'hourly' ? 'Every' :
+                 'Every'}
+              </p>
             </CardContent>
           </Card>
         </div>
