@@ -424,7 +424,10 @@ Lines 2+: Reasoning
 """
         
         # Initialize LLM with correct integration
-        api_key = config.openai_api_key if config.llm_provider == "openai" and config.openai_api_key else os.environ.get('EMERGENT_LLM_KEY')
+        if config.llm_provider == "openai" and config.openai_api_key:
+            api_key = config.openai_api_key
+        else:
+            api_key = os.environ.get('EMERGENT_LLM_KEY')
         
         if not current_session_id:
             current_session_id = f"trading_{uuid.uuid4().hex[:8]}"
@@ -436,7 +439,7 @@ Lines 2+: Reasoning
                 system_message="You are an expert stock market analyst providing actionable trading decisions."
             )
             
-            # Set model based on provider
+            # Always use openai provider (emergentintegrations supports both)
             chat.with_model("openai", config.llm_model)
             
             user_message = UserMessage(text=prompt)
@@ -444,8 +447,15 @@ Lines 2+: Reasoning
             
         except Exception as llm_error:
             logger.error(f"LLM API error: {str(llm_error)}")
-            # Fallback response
-            response = f"SIP_ACTION: SKIP\nAMOUNT: 0\nERROR: {str(llm_error)}"
+            error_msg = str(llm_error)
+            
+            # Check for specific errors
+            if "AuthenticationError" in error_msg or "Incorrect API key" in error_msg:
+                response = f"SIP_ACTION: SKIP\nAMOUNT: 0\nERROR: Invalid {config.llm_provider.upper()} API key. Please check your API key in Control Panel."
+            elif "insufficient_quota" in error_msg or "quota" in error_msg.lower():
+                response = f"SIP_ACTION: SKIP\nAMOUNT: 0\nERROR: {config.llm_provider.upper()} quota exceeded. Please add credits or switch to Emergent LLM."
+            else:
+                response = f"SIP_ACTION: SKIP\nAMOUNT: 0\nERROR: LLM error - {error_msg[:100]}"
         
         # Parse response
         decision = "SKIP"
