@@ -587,21 +587,7 @@ You are a stock market analyst. Analyze whether to sell this holding.
 **CURRENT VALUE**: ₹{current_value:.2f}
 **P&L**: ₹{pnl:.2f} ({pnl_pct:.2f}%)
 
-**USER'S THRESHOLDS**:
-- Profit Threshold: {config.profit_threshold_percent}% (only consider selling if profit is above this)
-- Minimum Gain After Charges: {config.minimum_gain_threshold_percent}%
-- Tax Harvesting: {"ENABLED" if config.enable_tax_harvesting else "DISABLED"}
-{f"- Tax Loss Slab: ₹{config.tax_harvesting_loss_slab:.2f}" if config.enable_tax_harvesting else ""}
-
-**USER'S ANALYSIS PARAMETERS**:
-{config.analysis_parameters}
-
-**CRITICAL RULES**:
-1. **NEVER SELL AT A LOSS** unless it's for tax harvesting AND re-entry is planned
-2. Only recommend SELL if profit > {config.profit_threshold_percent}% AND fundamentals suggest booking profit
-3. For EXIT_AND_REENTER: Only if stock is overvalued but fundamentals are strong for re-entry
-4. Consider brokerage charges (~0.5%) - actual gain should be > {config.minimum_gain_threshold_percent}%
-5. For tax harvesting: Only if loss > ₹{config.tax_harvesting_loss_slab if config.enable_tax_harvesting else 0} AND you recommend immediate re-entry
+**YOUR TASK**: Decide whether to sell this holding based on current market conditions, fundamentals, and technical analysis.
 
 **RESPONSE FORMAT** (must follow exactly):
 SELL_ACTION: HOLD or SELL or EXIT_AND_REENTER
@@ -609,11 +595,35 @@ RE_ENTRY_PRICE: <price in rupees if EXIT_AND_REENTER, else 0>
 TAX_HARVESTING: YES or NO
 REASONING: <brief 2-3 line explanation>
 
-**EXAMPLES**:
-- If P&L is -5% and tax harvesting enabled: "SELL_ACTION: EXIT_AND_REENTER\nRE_ENTRY_PRICE: {market_data.get('ltp', 0)}\nTAX_HARVESTING: YES\nREASONING: ..."
-- If P&L is +20% but stock is overvalued: "SELL_ACTION: SELL\nRE_ENTRY_PRICE: 0\nTAX_HARVESTING: NO\nREASONING: ..."
-- If P&L is +8% but below threshold: "SELL_ACTION: HOLD\nRE_ENTRY_PRICE: 0\nTAX_HARVESTING: NO\nREASONING: ..."
-- If P&L is -3%: "SELL_ACTION: HOLD\nRE_ENTRY_PRICE: 0\nTAX_HARVESTING: NO\nREASONING: Below threshold, hold for recovery"
+**GUIDELINES**:
+1. Consider stock fundamentals, market trends, and technical indicators
+2. EXIT_AND_REENTER: Use when stock is temporarily overvalued but has strong long-term potential
+3. SELL: Use when fundamentals have deteriorated or better opportunities exist
+4. HOLD: When stock has more upside potential
+5. Consider brokerage charges (~0.5%) in your decision
+"""
+        elif action == "buy":
+            prompt = f"""
+You are a stock market analyst. Analyze this stock for BUY action.
+
+**STOCK**: {symbol}
+**CURRENT PRICE**: ₹{market_data.get('ltp', 0):.2f}
+
+**PORTFOLIO CONTEXT**:
+- Current Quantity: {item.get('quantity', 0)}
+- Avg Price: ₹{item.get('avg_price', 0) or 0:.2f}
+
+**USER'S ANALYSIS PARAMETERS**:
+{config.analysis_parameters}
+
+**YOUR TASK**: Decide whether to buy this stock based on current market conditions and your analysis.
+
+**RESPONSE FORMAT**:
+BUY_ACTION: EXECUTE or SKIP
+AMOUNT: <suggested investment amount in rupees>
+REASONING: <brief 2-3 line explanation>
+
+Provide your recommendation based on fundamentals and technical analysis.
 """
         else:
             # For buy or other actions
