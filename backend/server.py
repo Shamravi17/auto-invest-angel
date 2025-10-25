@@ -44,64 +44,46 @@ auth_tokens: Optional[Dict] = None
 current_session_id = None
 
 # ===== MODELS =====
-class SIPConfig(BaseModel):
-    enabled: bool = False
-    amount: float = 0
-    frequency_days: int = 30  # How often to invest (e.g., 30 days = monthly)
-    next_sip_date: Optional[str] = None
-
-class SellStrategy(BaseModel):
-    enabled: bool = False
-    stop_loss_percent: float = 5.0
-    target_profit_percent: float = 15.0
-    trailing_stop_percent: float = 0.0
-    use_llm_signals: bool = True
-
 class BotConfig(BaseModel):
     is_active: bool = False
     schedule_minutes: int = 30
-    llm_provider: str = "emergent"  # emergent or openai
+    llm_provider: str = "emergent"
     llm_model: str = "gpt-4o-mini"
     openai_api_key: Optional[str] = None
     telegram_chat_ids: List[str] = []
     telegram_bot_token: Optional[str] = None
     enable_notifications: bool = True
-    auto_execute_trades: bool = False  # Safety: require manual approval by default
-    analysis_params: Dict[str, Any] = {
-        "pe_ratio_threshold": 25,
-        "volume_spike_percentage": 50,
-        "rsi_overbought": 70,
-        "rsi_oversold": 30,
-        "enable_technical_analysis": True,
-        "enable_fundamental_analysis": True
-    }
+    auto_execute_trades: bool = False
+    analysis_parameters: str = "Consider P/E ratio, volume trends, RSI indicators, support/resistance levels, and overall market sentiment."
     last_updated: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
-class Watchlist(BaseModel):
+class WatchlistItem(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     symbol: str
     exchange: str = "NSE"
-    symbol_token: Optional[str] = None
-    asset_type: str = "stock"  # stock or etf
-    sip_config: SIPConfig = Field(default_factory=SIPConfig)
-    sell_strategy: SellStrategy = Field(default_factory=SellStrategy)
+    symbol_token: str
+    action: str = "hold"  # sip, buy, sell, hold
+    sip_amount: Optional[float] = None
+    sip_frequency_days: Optional[int] = 30
+    next_action_date: Optional[str] = None
+    quantity: Optional[int] = None
+    avg_price: Optional[float] = None
+    notes: Optional[str] = ""
     added_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 class AnalysisLog(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     symbol: str
-    prompt: str
-    llm_response: str
-    analysis_summary: str
+    action: str
+    llm_decision: str
     market_data: Dict[str, Any]
-    signal: Optional[str] = None
-    status: str = "success"
+    executed: bool = False
+    order_id: Optional[str] = None
     error: Optional[str] = None
 
-class TelegramConfig(BaseModel):
-    bot_token: str
-    chat_ids: List[str]
+class TelegramNotification(BaseModel):
+    message: str
 
 # ===== ANGEL ONE AUTH =====
 def generate_totp() -> str:
@@ -122,7 +104,7 @@ async def angel_login():
         
         if response.get('status'):
             auth_tokens = response['data']
-            logger.info(f"✅ Angel One login successful for {auth_tokens.get('clientcode')}")
+            logger.info(f"✅ Angel One login successful")
             return True
         else:
             logger.error(f"❌ Angel One login failed: {response.get('message')}")
@@ -131,55 +113,17 @@ async def angel_login():
         logger.error(f"❌ Angel One login exception: {str(e)}")
         return False
 
-async def get_market_data(symbol: str, token: str, exchange: str = "NSE") -> Dict[str, Any]:
-    try:
-        # Get last traded price
-        ltp_params = {
-            "exchange": exchange,
-            "tradingsymbol": symbol,
-            "symboltoken": token
-        }
-        ltp_response = smart_api.ltpData(ltp_params)
-        
-        # Get historical data (last 30 days)
-        to_date = datetime.now()
-        from_date = to_date - timedelta(days=30)
-        
-        candle_params = {
-            "exchange": exchange,
-            "symboltoken": token,
-            "interval": "ONE_DAY",
-            "fromdate": from_date.strftime("%Y-%m-%d %H:%M"),
-            "todate": to_date.strftime("%Y-%m-%d %H:%M")
-        }
-        candle_response = smart_api.getCandleData(candle_params)
-        
-        market_data = {
-            "symbol": symbol,
-            "ltp": ltp_response.get('data', {}).get('ltp', 0) if ltp_response.get('status') else 0,
-            "candles": candle_response.get('data', []) if candle_response.get('status') else [],
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
-        
-        return market_data
-    except Exception as e:
-        logger.error(f"Error fetching market data for {symbol}: {str(e)}")
-        return {"symbol": symbol, "error": str(e)}
-
-# ===== PORTFOLIO FUNCTIONS =====
 async def get_portfolio():
     """Get complete Angel One portfolio"""
     try:
         if not smart_api or not auth_tokens:
             await angel_login()
         
-        # Get holdings
         holdings_response = smart_api.holding()
         holdings = []
         if holdings_response and holdings_response.get('status'):
             holdings = holdings_response.get('data', [])
         
-        # Get positions
         positions_response = smart_api.position()
         positions = []
         if positions_response and positions_response.get('status'):
@@ -194,9 +138,39 @@ async def get_portfolio():
         logger.error(f"Error fetching portfolio: {str(e)}")
         return {"holdings": [], "positions": [], "error": str(e)}
 
-# ===== TRADE EXECUTION =====
-async def execute_buy_order(symbol: str, token: str, exchange: str, quantity: int, order_type: str = "MARKET"):
-    """Execute a buy order"""
+async def get_market_data(symbol: str, token: str, exchange: str = "NSE") -> Dict[str, Any]:
+    try:
+        ltp_params = {
+            "exchange": exchange,
+            "tradingsymbol": symbol,
+            "symboltoken": token
+        }
+        ltp_response = smart_api.ltpData(ltp_params)
+        
+        to_date = datetime.now()
+        from_date = to_date - timedelta(days=30)
+        
+        candle_params = {
+            "exchange": exchange,
+            "symboltoken": token,
+            "interval": "ONE_DAY",
+            "fromdate": from_date.strftime("%Y-%m-%d %H:%M"),
+            "todate": to_date.strftime("%Y-%m-%d %H:%M")
+        }
+        candle_response = smart_api.getCandleData(candle_params)
+        
+        return {
+            "symbol": symbol,
+            "ltp": ltp_response.get('data', {}).get('ltp', 0) if ltp_response.get('status') else 0,
+            "candles": candle_response.get('data', []) if candle_response.get('status') else [],
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Error fetching market data: {str(e)}")
+        return {"symbol": symbol, "error": str(e)}
+
+async def execute_order(symbol: str, token: str, exchange: str, transaction_type: str, quantity: int):
+    """Execute buy or sell order"""
     try:
         if not smart_api or not auth_tokens:
             await angel_login()
@@ -205,110 +179,85 @@ async def execute_buy_order(symbol: str, token: str, exchange: str, quantity: in
             "variety": "NORMAL",
             "tradingsymbol": symbol,
             "symboltoken": token,
-            "transactiontype": "BUY",
+            "transactiontype": transaction_type,
             "exchange": exchange,
-            "ordertype": order_type,
+            "ordertype": "MARKET",
             "producttype": "DELIVERY",
             "duration": "DAY",
             "quantity": str(quantity),
             "price": "0"
         }
         
-        logger.info(f"📈 Placing BUY order for {symbol}, qty: {quantity}")
+        logger.info(f"📈 Placing {transaction_type} order for {symbol}, qty: {quantity}")
         order_response = smart_api.placeOrder(order_params)
         
         if order_response and isinstance(order_response, str):
-            logger.info(f"✅ Buy order placed. Order ID: {order_response}")
+            logger.info(f"✅ Order placed. Order ID: {order_response}")
             return {"success": True, "order_id": order_response}
         else:
-            logger.error(f"❌ Buy order failed: {order_response}")
+            logger.error(f"❌ Order failed: {order_response}")
             return {"success": False, "error": str(order_response)}
     except Exception as e:
-        logger.error(f"Exception placing buy order: {str(e)}")
+        logger.error(f"Exception placing order: {str(e)}")
         return {"success": False, "error": str(e)}
 
-async def execute_sell_order(symbol: str, token: str, exchange: str, quantity: int, order_type: str = "MARKET"):
-    """Execute a sell order"""
-    try:
-        if not smart_api or not auth_tokens:
-            await angel_login()
-        
-        order_params = {
-            "variety": "NORMAL",
-            "tradingsymbol": symbol,
-            "symboltoken": token,
-            "transactiontype": "SELL",
-            "exchange": exchange,
-            "ordertype": order_type,
-            "producttype": "DELIVERY",
-            "duration": "DAY",
-            "quantity": str(quantity),
-            "price": "0"
-        }
-        
-        logger.info(f"📉 Placing SELL order for {symbol}, qty: {quantity}")
-        order_response = smart_api.placeOrder(order_params)
-        
-        if order_response and isinstance(order_response, str):
-            logger.info(f"✅ Sell order placed. Order ID: {order_response}")
-            return {"success": True, "order_id": order_response}
-        else:
-            logger.error(f"❌ Sell order failed: {order_response}")
-            return {"success": False, "error": str(order_response)}
-    except Exception as e:
-        logger.error(f"Exception placing sell order: {str(e)}")
-        return {"success": False, "error": str(e)}
-
-# ===== LLM ANALYSIS =====
-async def analyze_with_llm(market_data: Dict[str, Any], config: BotConfig) -> Dict[str, Any]:
+# ===== LLM DECISION MAKING =====
+async def get_llm_trading_decision(item: Dict, market_data: Dict, config: BotConfig) -> Dict[str, Any]:
+    """Ask LLM if we should execute the action NOW"""
     global current_session_id
     
     try:
-        # Prepare analysis prompt
-        params = config.analysis_params
-        candles = market_data.get('candles', [])
+        action = item['action']
+        symbol = item['symbol']
         ltp = market_data.get('ltp', 0)
+        candles = market_data.get('candles', [])
         
-        # Calculate basic technical indicators
-        analysis_context = f"""
-You are an expert stock market analyst. Analyze the following stock data and provide actionable insights:
+        # Build prompt
+        prompt = f"""
+You are an expert trading analyst. Analyze if we should execute a {action.upper()} action for {symbol} RIGHT NOW.
 
-Stock: {market_data['symbol']}
 Current Price: ₹{ltp}
-Recent Price History: {len(candles)} days of data available
+Recent 30-day candle data available: {len(candles)} days
 
-Analysis Parameters:
-- P/E Ratio Threshold: {params.get('pe_ratio_threshold', 25)}
-- Volume Spike Threshold: {params.get('volume_spike_percentage', 50)}%
-- RSI Overbought: {params.get('rsi_overbought', 70)}
-- RSI Oversold: {params.get('rsi_oversold', 30)}
+User's Analysis Parameters:
+{config.analysis_parameters}
 
-Recent Candle Data (last 5 days):
-{candles[-5:] if len(candles) >= 5 else candles}
+Action to evaluate: {action.upper()}
+"""
+        
+        if action == "sip":
+            prompt += f"\nSIP Amount: ₹{item.get('sip_amount', 0)}\nSIP Frequency: Every {item.get('sip_frequency_days', 30)} days\n"
+        elif action == "sell" and item.get('avg_price'):
+            avg_price = item['avg_price']
+            profit_loss = ((ltp - avg_price) / avg_price) * 100
+            prompt += f"\nAverage Buy Price: ₹{avg_price}\nCurrent P&L: {profit_loss:.2f}%\n"
+        
+        prompt += """
 
-Provide:
-1. Technical Analysis Summary
-2. Price Trend Analysis
-3. Trading Signal (BUY/SELL/HOLD)
-4. Key Support and Resistance Levels
-5. Risk Assessment
+Based on:
+1. Current market conditions
+2. Technical indicators from recent data
+3. User's analysis parameters
+4. Risk-reward ratio
 
-Be concise and actionable.
+Provide your decision:
+- If you recommend executing the action NOW, respond with: EXECUTE
+- If you recommend waiting, respond with: WAIT
+- If conditions are unfavorable, respond with: SKIP
+
+Then explain your reasoning in 2-3 sentences.
 """
         
         # Initialize LLM
-        if config.llm_provider == "openai" and config.openai_api_key:
-            api_key = config.openai_api_key
-        else:
-            api_key = os.environ.get('EMERGENT_LLM_KEY')
+        api_key = config.openai_api_key if config.llm_provider == "openai" and config.openai_api_key else os.environ.get('EMERGENT_LLM_KEY')
         
         if not current_session_id:
-            current_session_id = f"trading_bot_{uuid.uuid4().hex[:8]}"
+            current_session_id = f"trading_{uuid.uuid4().hex[:8]}"
         
         chat = LlmChat(
             api_key=api_key,
             session_id=current_session_id,
-            system_message="You are an expert stock market analyst providing actionable trading insights."
+            system_message="You are an expert stock market analyst providing actionable trading decisions."
         )
         
         if config.llm_provider == "openai":
@@ -316,34 +265,31 @@ Be concise and actionable.
         else:
             chat.with_model("openai", config.llm_model)
         
-        # Send message
-        user_message = UserMessage(text=analysis_context)
+        user_message = UserMessage(text=prompt)
         response = await chat.send_message(user_message)
         
-        # Extract signal from response
-        signal = "HOLD"
-        if "BUY" in response.upper():
-            signal = "BUY"
-        elif "SELL" in response.upper():
-            signal = "SELL"
+        # Extract decision
+        decision = "WAIT"
+        if "EXECUTE" in response.upper():
+            decision = "EXECUTE"
+        elif "SKIP" in response.upper():
+            decision = "SKIP"
         
         return {
-            "prompt": analysis_context,
-            "llm_response": response,
-            "signal": signal,
-            "summary": response[:200] + "..." if len(response) > 200 else response
+            "decision": decision,
+            "reasoning": response,
+            "prompt": prompt
         }
         
     except Exception as e:
-        logger.error(f"LLM analysis error: {str(e)}")
+        logger.error(f"LLM decision error: {str(e)}")
         return {
-            "prompt": "Error occurred",
-            "llm_response": f"Error: {str(e)}",
-            "signal": None,
-            "summary": f"Analysis failed: {str(e)}"
+            "decision": "SKIP",
+            "reasoning": f"Error: {str(e)}",
+            "prompt": ""
         }
 
-# ===== TELEGRAM NOTIFICATIONS =====
+# ===== TELEGRAM =====
 async def send_telegram_notification(message: str, config: BotConfig):
     if not config.enable_notifications or not config.telegram_bot_token:
         return
@@ -355,208 +301,197 @@ async def send_telegram_notification(message: str, config: BotConfig):
         for chat_id in config.telegram_chat_ids:
             try:
                 await bot.send_message(chat_id=chat_id, text=message, parse_mode='Markdown')
-                logger.info(f"✅ Notification sent to {chat_id}")
+                logger.info(f"✅ Notification sent")
             except Exception as e:
-                logger.error(f"Failed to send to {chat_id}: {str(e)}")
+                logger.error(f"Failed to send notification: {str(e)}")
     except Exception as e:
-        logger.error(f"Telegram notification error: {str(e)}")
+        logger.error(f"Telegram error: {str(e)}")
 
 # ===== BOT EXECUTION =====
-async def run_bot_analysis():
+async def run_trading_bot():
+    """Main bot execution - checks watchlist and executes trades"""
     try:
-        logger.info("🤖 Starting bot analysis cycle...")
+        logger.info("🤖 Starting trading bot cycle...")
         
         # Get config
         config_doc = await db.bot_config.find_one({"_id": "main"})
         if not config_doc or not config_doc.get('is_active'):
-            logger.info("Bot is inactive. Skipping analysis.")
+            logger.info("Bot is inactive")
             return
         
         config = BotConfig(**config_doc)
         
-        # Get watchlist
-        watchlist = await db.watchlist.find().to_list(100)
+        # Get watchlist items with actions
+        watchlist = await db.watchlist.find({"action": {"$in": ["sip", "buy", "sell"]}}).to_list(100)
+        
         if not watchlist:
-            logger.info("No symbols in watchlist")
+            logger.info("No actionable items in watchlist")
             return
         
-        # Login to Angel One if needed
+        # Login to Angel One
         if not auth_tokens:
             await angel_login()
         
-        # Get current portfolio
-        portfolio = await get_portfolio()
-        holdings_dict = {h.get('tradingsymbol'): h for h in portfolio.get('holdings', [])}
-        
-        # Process each watchlist item
+        # Process each item
         for item in watchlist:
             symbol = item['symbol']
-            token = item.get('symbol_token', '')
+            token = item['symbol_token']
             exchange = item.get('exchange', 'NSE')
-            asset_type = item.get('asset_type', 'stock')
+            action = item['action']
             
-            logger.info(f"📊 Analyzing {symbol} ({asset_type})...")
+            logger.info(f"📊 Processing {symbol} - Action: {action}")
+            
+            # Check if action is due (for SIP)
+            if action == "sip":
+                next_date = item.get('next_action_date')
+                if next_date and next_date > datetime.now().date().isoformat():
+                    logger.info(f"⏰ SIP not due yet for {symbol}")
+                    continue
             
             # Get market data
             market_data = await get_market_data(symbol, token, exchange)
             current_price = market_data.get('ltp', 0)
             
-            # === SIP LOGIC FOR ETFs ===
-            sip_config = item.get('sip_config', {})
-            if asset_type == 'etf' and sip_config.get('enabled'):
-                next_sip = sip_config.get('next_sip_date')
-                today = datetime.now().date().isoformat()
-                
-                # Check if SIP is due
-                if not next_sip or next_sip <= today:
-                    sip_amount = sip_config.get('amount', 0)
-                    if sip_amount > 0 and current_price > 0:
-                        quantity = int(sip_amount / current_price)
+            if current_price == 0:
+                logger.warning(f"⚠️ No price data for {symbol}")
+                continue
+            
+            # Get LLM decision
+            llm_result = await get_llm_trading_decision(item, market_data, config)
+            
+            # Log the analysis
+            analysis_log = AnalysisLog(
+                symbol=symbol,
+                action=action,
+                llm_decision=llm_result['decision'],
+                market_data=market_data,
+                executed=False
+            )
+            
+            # Execute if LLM says yes and auto-execute is enabled
+            if llm_result['decision'] == "EXECUTE" and config.auto_execute_trades:
+                if action == "sip" or action == "buy":
+                    # Calculate quantity
+                    if action == "sip":
+                        amount = item.get('sip_amount', 0)
+                        quantity = int(amount / current_price) if amount > 0 else 0
+                    else:
+                        quantity = item.get('quantity', 1)
+                    
+                    if quantity > 0:
+                        result = await execute_order(symbol, token, exchange, "BUY", quantity)
                         
-                        if quantity > 0:
-                            logger.info(f"💰 SIP due for {symbol}: ₹{sip_amount} ({quantity} units)")
-                            
-                            if config.auto_execute_trades:
-                                result = await execute_buy_order(symbol, token, exchange, quantity)
-                                
-                                notification = f"""
-🤖 *Auto-SIP Executed*
-
-📈 Symbol: {symbol}
-💵 Amount: ₹{sip_amount}
-📊 Quantity: {quantity} units
-💰 Price: ₹{current_price}
-{'✅ Order Placed' if result['success'] else '❌ Order Failed'}
-
-⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-"""
-                                await send_telegram_notification(notification, config)
-                            else:
-                                logger.info(f"⚠️ Auto-trade disabled. Would have bought {quantity} units of {symbol}")
+                        if result['success']:
+                            analysis_log.executed = True
+                            analysis_log.order_id = result['order_id']
                             
                             # Update next SIP date
-                            next_date = (datetime.now() + timedelta(days=sip_config.get('frequency_days', 30))).date().isoformat()
-                            await db.watchlist.update_one(
-                                {"symbol": symbol},
-                                {"$set": {"sip_config.next_sip_date": next_date}}
-                            )
-            
-            # === SELL STRATEGY FOR HOLDINGS ===
-            sell_strategy = item.get('sell_strategy', {})
-            if sell_strategy.get('enabled') and symbol in holdings_dict:
-                holding = holdings_dict[symbol]
-                avg_price = float(holding.get('averageprice', 0))
-                quantity = int(holding.get('quantity', 0))
-                
-                if avg_price > 0 and quantity > 0:
-                    profit_loss_pct = ((current_price - avg_price) / avg_price) * 100
-                    
-                    stop_loss = sell_strategy.get('stop_loss_percent', 5.0)
-                    target_profit = sell_strategy.get('target_profit_percent', 15.0)
-                    
-                    should_sell = False
-                    sell_reason = ""
-                    
-                    # Check stop loss
-                    if profit_loss_pct <= -stop_loss:
-                        should_sell = True
-                        sell_reason = f"Stop Loss triggered ({profit_loss_pct:.2f}%)"
-                    
-                    # Check target profit
-                    elif profit_loss_pct >= target_profit:
-                        should_sell = True
-                        sell_reason = f"Target Profit reached ({profit_loss_pct:.2f}%)"
-                    
-                    if should_sell:
-                        logger.info(f"🚨 SELL signal for {symbol}: {sell_reason}")
-                        
-                        if config.auto_execute_trades:
-                            result = await execute_sell_order(symbol, token, exchange, quantity)
+                            if action == "sip":
+                                next_date = (datetime.now() + timedelta(days=item.get('sip_frequency_days', 30))).date().isoformat()
+                                await db.watchlist.update_one(
+                                    {"symbol": symbol},
+                                    {"$set": {"next_action_date": next_date}}
+                                )
                             
                             notification = f"""
-🚨 *Sell Strategy Executed*
+🎯 *{action.upper()} Executed*
 
-📉 Symbol: {symbol}
-📊 Quantity: {quantity} units
-💰 Buy Price: ₹{avg_price}
-💵 Sell Price: ₹{current_price}
-📈 P&L: {profit_loss_pct:.2f}%
-📋 Reason: {sell_reason}
-{'✅ Order Placed' if result['success'] else '❌ Order Failed'}
+📈 Symbol: {symbol}
+📊 Quantity: {quantity}
+💰 Price: ₹{current_price}
+💵 Value: ₹{quantity * current_price:.2f}
+🆔 Order: {result['order_id']}
 
-⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+🤖 AI Reasoning:
+{llm_result['reasoning'][:200]}
+
+⏰ {datetime.now().strftime('%Y-%m-%d %H:%M')}
 """
                             await send_telegram_notification(notification, config)
                         else:
-                            logger.info(f"⚠️ Auto-trade disabled. Would have sold {quantity} units of {symbol}")
+                            analysis_log.error = result.get('error')
+                
+                elif action == "sell":
+                    quantity = item.get('quantity', 0)
+                    if quantity > 0:
+                        result = await execute_order(symbol, token, exchange, "SELL", quantity)
+                        
+                        if result['success']:
+                            analysis_log.executed = True
+                            analysis_log.order_id = result['order_id']
+                            
+                            avg_price = item.get('avg_price', 0)
+                            profit_loss = (current_price - avg_price) * quantity if avg_price else 0
+                            
+                            notification = f"""
+💸 *SELL Executed*
+
+📉 Symbol: {symbol}
+📊 Quantity: {quantity}
+💰 Sell Price: ₹{current_price}
+📈 Avg Buy: ₹{avg_price}
+💵 P&L: ₹{profit_loss:.2f}
+🆔 Order: {result['order_id']}
+
+🤖 AI Reasoning:
+{llm_result['reasoning'][:200]}
+
+⏰ {datetime.now().strftime('%Y-%m-%d %H:%M')}
+"""
+                            await send_telegram_notification(notification, config)
+                            
+                            # Remove from watchlist after successful sell
+                            await db.watchlist.delete_one({"symbol": symbol})
+                            logger.info(f"✅ {symbol} removed from watchlist after sell")
+                        else:
+                            analysis_log.error = result.get('error')
             
-            # === LLM ANALYSIS (for insights) ===
-            if sell_strategy.get('use_llm_signals', True):
-                llm_result = await analyze_with_llm(market_data, config)
-                
-                # Save log
-                log = AnalysisLog(
-                    symbol=symbol,
-                    prompt=llm_result['prompt'],
-                    llm_response=llm_result['llm_response'],
-                    analysis_summary=llm_result['summary'],
-                    market_data=market_data,
-                    signal=llm_result['signal']
-                )
-                
-                await db.analysis_logs.insert_one(log.model_dump())
-                
-                # Send notification for strong signals
-                if llm_result['signal'] in ['BUY', 'SELL'] and asset_type == 'stock':
-                    notification = f"""
-🤖 *AI Analysis Alert*
+            elif llm_result['decision'] == "EXECUTE" and not config.auto_execute_trades:
+                logger.info(f"⚠️ Would execute {action} for {symbol} but auto-execute is disabled")
+                notification = f"""
+💡 *Trading Signal*
 
 📈 Symbol: {symbol}
-💡 Signal: *{llm_result['signal']}*
+🎯 Action: {action.upper()}
 💰 Price: ₹{current_price}
 
-📝 Analysis:
-{llm_result['summary']}
+🤖 LLM Recommendation: EXECUTE
+⚠️ Auto-execute is OFF
 
-⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+{llm_result['reasoning'][:200]}
 """
-                    await send_telegram_notification(notification, config)
+                await send_telegram_notification(notification, config)
             
-            logger.info(f"✅ {symbol} analysis complete")
+            # Save log
+            await db.analysis_logs.insert_one(analysis_log.model_dump())
+            
+            logger.info(f"✅ {symbol} processed - Decision: {llm_result['decision']}")
         
-        logger.info("✅ Bot analysis cycle completed")
+        logger.info("✅ Trading bot cycle completed")
         
     except Exception as e:
         logger.error(f"Bot execution error: {str(e)}")
 
-# ===== SCHEDULER MANAGEMENT =====
 def schedule_bot():
-    config_doc = None
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    
     try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         config_doc = loop.run_until_complete(db.bot_config.find_one({"_id": "main"}))
+        
+        if config_doc and config_doc.get('is_active'):
+            minutes = config_doc.get('schedule_minutes', 30)
+            scheduler.remove_all_jobs()
+            scheduler.add_job(
+                run_trading_bot,
+                trigger=IntervalTrigger(minutes=minutes),
+                id='trading_bot',
+                replace_existing=True
+            )
+            logger.info(f"⏰ Bot scheduled every {minutes} minutes")
+        else:
+            scheduler.remove_all_jobs()
     except:
         pass
-    
-    if config_doc and config_doc.get('is_active'):
-        minutes = config_doc.get('schedule_minutes', 30)
-        
-        # Remove existing jobs
-        scheduler.remove_all_jobs()
-        
-        # Add new job
-        scheduler.add_job(
-            run_bot_analysis,
-            trigger=IntervalTrigger(minutes=minutes),
-            id='bot_analysis',
-            replace_existing=True
-        )
-        logger.info(f"⏰ Bot scheduled to run every {minutes} minutes")
-    else:
-        scheduler.remove_all_jobs()
-        logger.info("⏸️  Bot scheduling disabled")
 
 # ===== API ENDPOINTS =====
 @app.on_event("startup")
@@ -564,7 +499,7 @@ async def startup_event():
     scheduler.start()
     await angel_login()
     schedule_bot()
-    logger.info("🚀 AI Trading Bot started")
+    logger.info("🚀 Trading Bot Started - Running on FastAPI with APScheduler")
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -573,7 +508,7 @@ async def shutdown_event():
 
 @app.get("/api/")
 async def root():
-    return {"status": "operational", "app": "AI Trading Bot"}
+    return {"status": "operational", "app": "AI Trading Bot", "bot_location": "Running in FastAPI backend with APScheduler"}
 
 @app.get("/api/status")
 async def get_status():
@@ -586,15 +521,14 @@ async def get_status():
         "angel_one_connected": auth_tokens is not None,
         "watchlist_symbols": watchlist_count,
         "total_analyses": logs_count,
-        "scheduler_running": scheduler.running
+        "scheduler_running": scheduler.running,
+        "bot_location": "FastAPI Backend (APScheduler)"
     }
 
-# Bot Config
 @app.get("/api/config")
 async def get_config():
     config = await db.bot_config.find_one({"_id": "main"}, {"_id": 0})
     if not config:
-        # Create default config
         default_config = BotConfig().model_dump()
         await db.bot_config.insert_one({"_id": "main", **default_config})
         return default_config
@@ -604,90 +538,58 @@ async def get_config():
 async def update_config(config: BotConfig, background_tasks: BackgroundTasks):
     config_dict = config.model_dump()
     config_dict['last_updated'] = datetime.now(timezone.utc).isoformat()
-    
-    await db.bot_config.update_one(
-        {"_id": "main"},
-        {"$set": config_dict},
-        upsert=True
-    )
-    
-    # Reschedule bot
+    await db.bot_config.update_one({"_id": "main"}, {"$set": config_dict}, upsert=True)
     background_tasks.add_task(schedule_bot)
-    
-    return {"success": True, "message": "Configuration updated"}
+    return {"success": True}
 
-# Watchlist
+@app.get("/api/portfolio")
+async def get_angel_portfolio():
+    portfolio = await get_portfolio()
+    return portfolio
+
 @app.get("/api/watchlist")
 async def get_watchlist():
-    watchlist = await db.watchlist.find({}, {"_id": 0}).to_list(100)
+    watchlist = await db.watchlist.find({}, {"_id": 0}).to_list(200)
     return watchlist
 
 @app.post("/api/watchlist")
-async def add_to_watchlist(item: Watchlist):
-    # Check if already exists
+async def add_to_watchlist(item: WatchlistItem):
     existing = await db.watchlist.find_one({"symbol": item.symbol})
     if existing:
-        raise HTTPException(status_code=400, detail="Symbol already in watchlist")
-    
+        raise HTTPException(status_code=400, detail="Symbol already exists")
     await db.watchlist.insert_one(item.model_dump())
-    return {"success": True, "message": f"{item.symbol} added to watchlist"}
+    return {"success": True}
 
 @app.put("/api/watchlist/{symbol}")
 async def update_watchlist_item(symbol: str, updates: Dict[str, Any]):
-    result = await db.watchlist.update_one(
-        {"symbol": symbol},
-        {"$set": updates}
-    )
+    result = await db.watchlist.update_one({"symbol": symbol}, {"$set": updates})
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Symbol not found")
-    return {"success": True, "message": f"{symbol} updated"}
+    return {"success": True}
 
 @app.delete("/api/watchlist/{symbol}")
 async def remove_from_watchlist(symbol: str):
     result = await db.watchlist.delete_one({"symbol": symbol})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Symbol not found")
-    return {"success": True, "message": f"{symbol} removed from watchlist"}
+    return {"success": True}
 
-# Analysis Logs
 @app.get("/api/logs")
-async def get_logs(limit: int = 50, symbol: Optional[str] = None):
-    query = {"symbol": symbol} if symbol else {}
-    logs = await db.analysis_logs.find(query, {"_id": 0}).sort("timestamp", -1).limit(limit).to_list(limit)
+async def get_logs(limit: int = 50):
+    logs = await db.analysis_logs.find({}, {"_id": 0}).sort("timestamp", -1).limit(limit).to_list(limit)
     return logs
 
-@app.delete("/api/logs")
-async def clear_logs():
-    result = await db.analysis_logs.delete_many({})
-    return {"success": True, "deleted_count": result.deleted_count}
+@app.post("/api/run-bot")
+async def trigger_bot(background_tasks: BackgroundTasks):
+    background_tasks.add_task(run_trading_bot)
+    return {"success": True, "message": "Bot triggered"}
 
-# Portfolio
-@app.get("/api/portfolio")
-async def get_angel_portfolio():
-    """Get Angel One portfolio (holdings + positions)"""
-    portfolio = await get_portfolio()
-    return portfolio
-
-# Manual trigger
-@app.post("/api/run-analysis")
-async def trigger_analysis(background_tasks: BackgroundTasks):
-    background_tasks.add_task(run_bot_analysis)
-    return {"success": True, "message": "Analysis triggered"}
-
-# Test Telegram
-@app.post("/api/test-telegram")
-async def test_telegram(telegram_config: TelegramConfig):
-    try:
-        from telegram import Bot
-        bot = Bot(token=telegram_config.bot_token)
-        
-        for chat_id in telegram_config.chat_ids:
-            await bot.send_message(
-                chat_id=chat_id,
-                text="🤖 *Test Notification*\n\nYour AI Trading Bot is configured correctly!",
-                parse_mode='Markdown'
-            )
-        
-        return {"success": True, "message": "Test notification sent"}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+@app.post("/api/send-notification")
+async def send_test_notification(notification: TelegramNotification):
+    config_doc = await db.bot_config.find_one({"_id": "main"})
+    if not config_doc:
+        raise HTTPException(status_code=400, detail="Configure Telegram settings first")
+    
+    config = BotConfig(**config_doc)
+    await send_telegram_notification(notification.message, config)
+    return {"success": True}
