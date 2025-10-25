@@ -712,7 +712,7 @@ async def delete_watchlist_item(item_id: str):
     raise HTTPException(status_code=404, detail="Item not found")
 
 # ===== LLM DECISION LOGIC =====
-async def get_llm_decision(symbol: str, action: str, market_data: Dict, config: BotConfig, item: Dict, portfolio: Dict = None) -> Dict:
+async def get_llm_decision(symbol: str, action: str, market_data: Dict, config: BotConfig, item: Dict, portfolio: Dict = None, total_sip_count: int = 0) -> Dict:
     """Get LLM decision for a trading action"""
     try:
         # Get API key
