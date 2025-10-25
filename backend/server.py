@@ -250,7 +250,7 @@ async def execute_order(symbol: str, token: str, exchange: str, transaction_type
 
 # ===== LLM DECISION MAKING =====
 async def get_llm_trading_decision(item: Dict, market_data: Dict, config: BotConfig, portfolio_info: Dict) -> Dict[str, Any]:
-    """Ask LLM if we should execute the action NOW and for SIP - at what amount"""
+    """Enhanced LLM decision with EXIT_AND_REENTER logic"""
     global current_session_id
     
     try:
@@ -260,58 +260,92 @@ async def get_llm_trading_decision(item: Dict, market_data: Dict, config: BotCon
         candles = market_data.get('candles', [])
         available_cash = portfolio_info.get('available_cash', 0)
         
+        # Check if we already hold this position
+        holding = next((h for h in portfolio_info.get('holdings', []) if h.get('tradingsymbol') == symbol), None)
+        
         # Build comprehensive prompt
         prompt = f"""
-You are an expert trading analyst making real-time trading decisions.
+You are an expert trading analyst making real-time trading decisions with TAX OPTIMIZATION awareness.
 
 **SYMBOL**: {symbol}
 **CURRENT PRICE**: ₹{ltp}
 **ACTION TO EVALUATE**: {action.upper()}
-**AVAILABLE CASH IN ACCOUNT**: ₹{available_cash:,.2f}
+**AVAILABLE CASH**: ₹{available_cash:,.2f}
 
 **MARKET DATA**:
-- Recent 30-day candle data: {len(candles)} days available
+- Recent 30-day candle data: {len(candles)} days
 - Latest close prices: {[c[4] for c in candles[-5:]] if candles else 'N/A'}
 - Recent volume: {[c[5] for c in candles[-5:]] if candles else 'N/A'}
+"""
+        
+        if holding:
+            qty = int(holding.get('quantity', 0))
+            avg_price = float(holding.get('averageprice', 0))
+            current_value = ltp * qty
+            invested = avg_price * qty
+            unrealized_pnl = current_value - invested
+            unrealized_pnl_pct = (unrealized_pnl / invested * 100) if invested > 0 else 0
+            
+            prompt += f"""
+
+**CURRENT HOLDING**:
+- Quantity: {qty} shares
+- Average price: ₹{avg_price:.2f}
+- Invested: ₹{invested:,.2f}
+- Current value: ₹{current_value:,.2f}
+- Unrealized P&L: ₹{unrealized_pnl:,.2f} ({unrealized_pnl_pct:+.2f}%)
+"""
+        
+        prompt += f"""
 
 **USER'S ANALYSIS PARAMETERS**:
 {config.analysis_parameters}
+
+**TAX HARVESTING**: {"ENABLED - Consider tax implications" if config.enable_tax_harvesting else "DISABLED"}
+**MINIMUM GAIN THRESHOLD**: {config.minimum_gain_threshold_percent}% (after taxes & charges)
 """
         
         if action == "sip":
             suggested_sip = item.get('sip_amount', 0)
             frequency = item.get('sip_frequency_days', 30)
+            
             prompt += f"""
 
 **SIP CONFIGURATION**:
-- User suggested SIP amount: ₹{suggested_sip}
+- User suggested amount: ₹{suggested_sip}
 - Frequency: Every {frequency} days
-- This is a SYSTEMATIC INVESTMENT PLAN (SIP) - regular periodic investing
+- This is SYSTEMATIC INVESTMENT - regular periodic investing
 
-**YOUR TASK**:
-1. Analyze if NOW is a good time to invest in this stock/ETF
-2. Consider the available cash: ₹{available_cash:,.2f}
-3. Decide the OPTIMAL SIP AMOUNT (can be different from user suggestion)
-4. The SIP amount should be:
-   - Within available cash
-   - Appropriate for current market conditions
-   - Suitable for long-term wealth creation
+**YOUR TASK - ENHANCED SIP LOGIC**:
+Determine if we should:
+1. **EXECUTE** - Invest now (regular SIP)
+2. **SKIP** - Wait for better conditions
+3. **EXIT_AND_REENTER** - Stock is overvalued, sell current holding and re-enter at lower price
+
+**EXIT_AND_REENTER Decision Criteria**:
+- Current holding exists and is significantly overvalued (e.g., RSI > 75, P/E too high)
+- Potential to re-enter at 5-10% lower price within next 30 days
+- Tax implications are favorable (or tax harvesting enabled)
+- After accounting for:
+  * Brokerage charges: 0.03% on buy, 0.03% on sell
+  * STT (Securities Transaction Tax): 0.1% on sell
+  * GST on brokerage: 18%
+  * Capital gains tax (if applicable)
+- Net benefit should exceed {config.minimum_gain_threshold_percent}% threshold
 
 **RESPOND WITH**:
-Line 1: EXECUTE or WAIT or SKIP
-Line 2: SIP_AMOUNT: <amount in rupees>
-Line 3-5: Brief reasoning (why this amount, why now/wait)
+Line 1: SIP_ACTION: [EXECUTE | SKIP | EXIT_AND_REENTER]
+Line 2: AMOUNT: <amount in rupees to invest if EXECUTE>
+Line 3: RE_ENTRY_PRICE: <target price for re-entry if EXIT_AND_REENTER>
+Line 4: TAX_HARVESTING: [YES | NO] - recommend tax harvesting?
+Lines 5+: Brief reasoning (why this decision, calculations if applicable)
 
-Example responses:
-"EXECUTE
-SIP_AMOUNT: 5000
-Good entry point with RSI at 45, below 200-day MA. Recommended ₹5000 for balanced accumulation."
-
-OR
-
-"WAIT
-SIP_AMOUNT: 0
-Stock overbought (RSI 78). Wait for correction before SIP."
+**Example Response for EXIT_AND_REENTER**:
+"SIP_ACTION: EXIT_AND_REENTER
+AMOUNT: 0
+RE_ENTRY_PRICE: 62
+TAX_HARVESTING: YES
+Stock overbought (RSI 78, P/E 45 vs industry 30). Current gain 8.5%. After taxes (1% STCG) and charges (0.2%), net gain ~7.3%. Exceeds 5% threshold. Technical indicators suggest correction to ₹62 level (10% down) likely in 2-3 weeks. Recommend exit now, re-enter at ₹62."
 """
         
         elif action == "buy":
@@ -319,51 +353,35 @@ Stock overbought (RSI 78). Wait for correction before SIP."
             total_cost = ltp * quantity
             prompt += f"""
 
-**BUY ORDER CONFIGURATION**:
-- Quantity to buy: {quantity} shares
+**BUY ORDER**:
+- Quantity: {quantity} shares
 - Total cost: ₹{total_cost:,.2f}
-- Available cash: ₹{available_cash:,.2f}
 
 **YOUR TASK**:
-Analyze if NOW is the right time to BUY this stock.
-Consider: technical indicators, valuation, momentum, risk/reward.
+Analyze if NOW is right time to BUY.
 
 **RESPOND WITH**:
-Line 1: EXECUTE or WAIT or SKIP
-Lines 2-4: Brief reasoning
+Line 1: SIP_ACTION: [EXECUTE | WAIT | SKIP]
+Line 2: AMOUNT: {total_cost}
+Lines 3+: Reasoning
 """
         
         elif action == "sell":
-            avg_price = item.get('avg_price', 0)
-            quantity = item.get('quantity', 0)
-            if avg_price > 0:
-                profit_loss_pct = ((ltp - avg_price) / avg_price) * 100
-                profit_loss_amt = (ltp - avg_price) * quantity
+            if holding:
                 prompt += f"""
 
 **SELL DECISION**:
-- Current holding: {quantity} shares
-- Average buy price: ₹{avg_price}
-- Current price: ₹{ltp}
-- Profit/Loss: {profit_loss_pct:.2f}% (₹{profit_loss_amt:,.2f})
+Analyze if NOW is optimal time to EXIT.
 
-**YOUR TASK**:
-Analyze if NOW is the right time to EXIT this position.
-Consider: profit target, stop loss, market conditions, opportunity cost.
+Consider:
+- Current P&L: {unrealized_pnl_pct:.2f}%
+- Tax implications
+- Market conditions
+- Better opportunities
 
 **RESPOND WITH**:
-Line 1: EXECUTE or WAIT or SKIP
-Lines 2-4: Brief reasoning
-"""
-        
-        prompt += """
-
-**DECISION CRITERIA**:
-- EXECUTE: Strong conviction, good timing, favorable conditions
-- WAIT: Neutral, need more confirmation, slight unfavorable conditions
-- SKIP: Poor conditions, high risk, better opportunities elsewhere
-
-Make your decision based on data-driven analysis, not speculation.
+Line 1: SIP_ACTION: [EXECUTE | WAIT | SKIP]
+Lines 2+: Reasoning
 """
         
         # Initialize LLM
@@ -375,7 +393,7 @@ Make your decision based on data-driven analysis, not speculation.
         chat = LlmChat(
             api_key=api_key,
             session_id=current_session_id,
-            system_message="You are an expert stock market analyst providing actionable trading decisions with specific investment amounts."
+            system_message="You are an expert stock market analyst providing actionable trading decisions with tax optimization."
         )
         
         if config.llm_provider == "openai":
@@ -386,26 +404,51 @@ Make your decision based on data-driven analysis, not speculation.
         user_message = UserMessage(text=prompt)
         response = await chat.send_message(user_message)
         
-        # Extract decision
+        # Parse response
         decision = "WAIT"
         sip_amount = 0
+        re_entry_price = 0
+        tax_harvesting = "NO"
         
-        if "EXECUTE" in response.upper():
-            decision = "EXECUTE"
-        elif "SKIP" in response.upper():
-            decision = "SKIP"
+        lines = response.split('\n')
+        for line in lines:
+            if "SIP_ACTION:" in line:
+                if "EXECUTE" in line.upper():
+                    decision = "EXECUTE"
+                elif "EXIT_AND_REENTER" in line.upper():
+                    decision = "EXIT_AND_REENTER"
+                elif "SKIP" in line.upper():
+                    decision = "SKIP"
+            elif "AMOUNT:" in line:
+                try:
+                    sip_amount = float(line.split(':')[1].strip().replace('₹', '').replace(',', ''))
+                except:
+                    sip_amount = item.get('sip_amount', 0)
+            elif "RE_ENTRY_PRICE:" in line or "RE-ENTRY PRICE:" in line:
+                try:
+                    re_entry_price = float(line.split(':')[1].strip().replace('₹', '').replace(',', ''))
+                except:
+                    pass
+            elif "TAX_HARVESTING:" in line:
+                if "YES" in line.upper():
+                    tax_harvesting = "YES"
         
-        # Extract SIP amount if action is SIP
-        if action == "sip" and "SIP_AMOUNT:" in response:
-            try:
-                amount_line = [line for line in response.split('\n') if 'SIP_AMOUNT:' in line][0]
-                sip_amount = float(amount_line.split(':')[1].strip().replace('₹', '').replace(',', ''))
-            except:
-                sip_amount = item.get('sip_amount', 0)
+        # Log prompt & response
+        log_entry = LLMPromptLog(
+            symbol=symbol,
+            action_type=action,
+            full_prompt=prompt,
+            llm_response=response,
+            model_used=config.llm_model,
+            decision_made=decision
+        )
+        await db.llm_prompt_logs.insert_one(log_entry.model_dump())
         
         return {
             "decision": decision,
-            "sip_amount": sip_amount if action == "sip" else 0,
+            "sip_amount": sip_amount,
+            "re_entry_price": re_entry_price,
+            "tax_harvesting": tax_harvesting,
             "reasoning": response,
             "prompt": prompt
         }
@@ -415,6 +458,8 @@ Make your decision based on data-driven analysis, not speculation.
         return {
             "decision": "SKIP",
             "sip_amount": 0,
+            "re_entry_price": 0,
+            "tax_harvesting": "NO",
             "reasoning": f"Error: {str(e)}",
             "prompt": ""
         }
