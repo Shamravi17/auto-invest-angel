@@ -25,7 +25,7 @@ function App() {
   const [logs, setLogs] = useState([]);
   const [portfolio, setPortfolio] = useState({ holdings: [], positions: [] });
   const [loading, setLoading] = useState(true);
-  const [newSymbol, setNewSymbol] = useState({ symbol: '', exchange: 'NSE', symbol_token: '', asset_type: 'stock' });
+  const [newSymbol, setNewSymbol] = useState({ symbol: '', exchange: 'NSE', symbol_token: '', action: 'hold' });
   const [showAddSymbol, setShowAddSymbol] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
