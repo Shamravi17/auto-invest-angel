@@ -391,21 +391,6 @@ function App() {
                       </DialogHeader>
                       <div className="space-y-4 pt-4">
                         <div className="space-y-2">
-                          <Label>Asset Type</Label>
-                          <Select
-                            value={newSymbol.asset_type}
-                            onValueChange={(value) => setNewSymbol({ ...newSymbol, asset_type: value })}
-                          >
-                            <SelectTrigger data-testid="asset-type-select">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="stock">Stock</SelectItem>
-                              <SelectItem value="etf">ETF</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
                           <Label>Symbol</Label>
                           <Input
                             data-testid="symbol-input"
@@ -439,6 +424,23 @@ function App() {
                             onChange={(e) => setNewSymbol({ ...newSymbol, symbol_token: e.target.value })}
                           />
                           <p className="text-xs text-slate-500">Find token from Angel One API docs</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Action</Label>
+                          <Select
+                            value={newSymbol.action}
+                            onValueChange={(value) => setNewSymbol({ ...newSymbol, action: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="hold">Hold (Monitor Only)</SelectItem>
+                              <SelectItem value="sip">SIP (Systematic Investment)</SelectItem>
+                              <SelectItem value="buy">Buy (One-time Purchase)</SelectItem>
+                              <SelectItem value="sell">Sell (Exit Position)</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                         <Button data-testid="confirm-add-symbol-btn" onClick={addSymbol} className="w-full">
                           Add to Watchlist
