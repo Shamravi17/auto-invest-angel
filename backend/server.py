@@ -1221,7 +1221,7 @@ async def run_trading_bot():
                 }
             
             # Get LLM decision
-            llm_result = await get_llm_decision(symbol, action, market_data, config, item, portfolio)
+            llm_result = await get_llm_decision(symbol, action, market_data, config, item, portfolio, action_counts.get('sip', 0))
             
             # Log analysis
             analysis_log = AnalysisLog(
