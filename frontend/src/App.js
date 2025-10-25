@@ -389,6 +389,123 @@ function App() {
             </Card>
           </TabsContent>
 
+          {/* Portfolio Analysis Tab */}
+          <TabsContent value="analysis">
+            <Card className="bg-white/90 backdrop-blur border-slate-200">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Brain className="w-5 h-5 text-indigo-600" />
+                      AI Portfolio Analysis
+                    </CardTitle>
+                    <CardDescription>Get comprehensive LLM-powered analysis of your portfolio</CardDescription>
+                  </div>
+                  <Button 
+                    onClick={analyzePortfolio} 
+                    disabled={analyzingPortfolio || portfolio.holdings.length === 0}
+                    className="bg-gradient-to-r from-indigo-600 to-purple-600"
+                  >
+                    {analyzingPortfolio ? (
+                      <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Analyzing...</>
+                    ) : (
+                      <><Brain className="w-4 h-4 mr-2" />Analyze Portfolio</>
+                    )}
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {portfolio.holdings.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Brain className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                    <p className="text-slate-500 text-lg mb-2">No portfolio to analyze</p>
+                    <p className="text-slate-400 text-sm">Add holdings to your portfolio first</p>
+                  </div>
+                ) : portfolioAnalyses.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Brain className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                    <p className="text-slate-500 text-lg mb-2">No analyses yet</p>
+                    <p className="text-slate-400 text-sm">Click \"Analyze Portfolio\" to get AI-powered insights</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {portfolioAnalyses.map((analysis) => (
+                      <div key={analysis.id} className="border border-slate-200 rounded-lg overflow-hidden">
+                        {/* Analysis Header */}
+                        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-4 border-b">
+                          <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-lg font-bold text-slate-800">Portfolio Analysis</h3>
+                            <span className="text-sm text-slate-500">{new Date(analysis.timestamp).toLocaleString()}</span>
+                          </div>
+                          
+                          {/* Summary Stats */}
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                            <div className="bg-white p-3 rounded-lg">
+                              <p className="text-xs text-slate-500">Investment</p>
+                              <p className="text-lg font-bold text-slate-800">{formatCurrency(analysis.portfolio_summary.total_investment)}</p>
+                            </div>
+                            <div className="bg-white p-3 rounded-lg">
+                              <p className="text-xs text-slate-500">Current Value</p>
+                              <p className="text-lg font-bold text-slate-800">{formatCurrency(analysis.portfolio_summary.current_value)}</p>
+                            </div>
+                            <div className="bg-white p-3 rounded-lg">
+                              <p className="text-xs text-slate-500">P&L</p>
+                              <p className={`text-lg font-bold ${analysis.portfolio_summary.overall_pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {analysis.portfolio_summary.overall_pnl >= 0 ? '+' : ''}{formatCurrency(analysis.portfolio_summary.overall_pnl)}
+                              </p>
+                            </div>
+                            <div className="bg-white p-3 rounded-lg">
+                              <p className="text-xs text-slate-500">P&L %</p>
+                              <p className={`text-lg font-bold ${analysis.portfolio_summary.overall_pnl_pct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {analysis.portfolio_summary.overall_pnl_pct >= 0 ? '+' : ''}{analysis.portfolio_summary.overall_pnl_pct.toFixed(2)}%
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* LLM Analysis */}
+                        <div className="p-6 bg-white">
+                          <h4 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                            <Brain className="w-4 h-4 text-indigo-600" />
+                            AI Insights & Recommendations
+                          </h4>
+                          <div className="prose prose-sm max-w-none">
+                            <div className="whitespace-pre-wrap text-slate-700 leading-relaxed">
+                              {analysis.llm_analysis}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Holdings Breakdown */}
+                        <details className="border-t">
+                          <summary className="p-4 cursor-pointer hover:bg-slate-50 text-sm font-medium text-slate-700">
+                            View Holdings Breakdown ({analysis.holdings.length} stocks)
+                          </summary>
+                          <div className="p-4 bg-slate-50 space-y-2">
+                            {analysis.holdings.map((h, idx) => (
+                              <div key={idx} className="flex items-center justify-between p-3 bg-white rounded border">
+                                <div>
+                                  <p className="font-semibold text-slate-800">{h.symbol}</p>
+                                  <p className="text-xs text-slate-500">Qty: {h.quantity} | Avg: {formatCurrency(h.avg_price)}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="font-semibold text-slate-800">{formatCurrency(h.ltp)}</p>
+                                  <p className={`text-sm font-medium ${h.pnl_pct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    {h.pnl_pct >= 0 ? '+' : ''}{h.pnl_pct.toFixed(2)}%
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </details>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* Watchlist & Strategy Tab */}
           <TabsContent value="watchlist">
             <Card className="bg-white/90 backdrop-blur border-slate-200">
