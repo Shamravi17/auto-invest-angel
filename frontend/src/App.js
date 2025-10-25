@@ -934,16 +934,85 @@ function App() {
             </Card>
 
             <Card className="bg-white/90 backdrop-blur border-slate-200">
-              <CardHeader><CardTitle>Analysis Parameters</CardTitle></CardHeader>
-              <CardContent className="grid grid-cols-2 gap-4">
+              <CardHeader><CardTitle>Analysis Parameters</CardTitle><CardDescription>Tell LLM what to consider (free text)</CardDescription></CardHeader>
+              <CardContent>
+                <Textarea 
+                  rows={4} 
+                  placeholder="e.g., Consider P/E ratio below 25, RSI oversold conditions, volume spike above 50%, resistance levels, market sentiment..."
+                  value={config?.analysis_parameters || ''}
+                  onChange={(e) => updateConfig({ analysis_parameters: e.target.value })}
+                  className="w-full"
+                />
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white/90 backdrop-blur border-slate-200">
+              <CardHeader><CardTitle>Trading Thresholds</CardTitle><CardDescription>Configure auto-sell and gain thresholds</CardDescription></CardHeader>
+              <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label>P/E Ratio Threshold</Label>
-                  <Input type="number" value={config?.analysis_params?.pe_ratio_threshold || 25} onChange={(e) => updateConfig({ analysis_params: { ...config.analysis_params, pe_ratio_threshold: parseInt(e.target.value) } })} />
+                  <Label>Auto Sell Threshold (%) - SIP Orders</Label>
+                  <div className="flex items-center gap-4">
+                    <Slider
+                      value={[config?.auto_sell_threshold_percent || 10]}
+                      onValueChange={([v]) => updateConfig({ auto_sell_threshold_percent: v })}
+                      min={5}
+                      max={50}
+                      step={1}
+                      className="flex-1"
+                    />
+                    <span className="text-lg font-bold text-red-600 min-w-[60px] text-right">
+                      {config?.auto_sell_threshold_percent || 10}%
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500">If loss exceeds this %, LLM will consider selling</p>
                 </div>
+
                 <div className="space-y-2">
-                  <Label>Volume Spike %</Label>
-                  <Input type="number" value={config?.analysis_params?.volume_spike_percentage || 50} onChange={(e) => updateConfig({ analysis_params: { ...config.analysis_params, volume_spike_percentage: parseInt(e.target.value) } })} />
+                  <Label>Minimum Gain Threshold (%)</Label>
+                  <div className="flex items-center gap-4">
+                    <Slider
+                      value={[config?.minimum_gain_threshold_percent || 5]}
+                      onValueChange={([v]) => updateConfig({ minimum_gain_threshold_percent: v })}
+                      min={1}
+                      max={20}
+                      step={0.5}
+                      className="flex-1"
+                    />
+                    <span className="text-lg font-bold text-green-600 min-w-[60px] text-right">
+                      {config?.minimum_gain_threshold_percent || 5}%
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500">Minimum net gain (after charges) required for exit/re-entry</p>
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white/90 backdrop-blur border-slate-200">
+              <CardHeader><CardTitle>Tax Harvesting</CardTitle><CardDescription>Configure tax loss harvesting strategy</CardDescription></CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between p-4 rounded-lg bg-slate-50">
+                  <div>
+                    <Label className="font-semibold">Enable Tax Harvesting</Label>
+                    <p className="text-sm text-slate-500 mt-1">Let LLM suggest tax loss harvesting opportunities</p>
+                  </div>
+                  <Switch
+                    checked={config?.enable_tax_harvesting || false}
+                    onCheckedChange={(c) => updateConfig({ enable_tax_harvesting: c })}
+                  />
+                </div>
+
+                {config?.enable_tax_harvesting && (
+                  <div className="space-y-2">
+                    <Label>Tax Harvesting Loss Slab (Rs.)</Label>
+                    <Input
+                      type="number"
+                      step="1000"
+                      value={config?.tax_harvesting_loss_slab || 50000}
+                      onChange={(e) => updateConfig({ tax_harvesting_loss_slab: parseFloat(e.target.value) })}
+                    />
+                    <p className="text-xs text-slate-500">Minimum loss required to trigger tax harvesting (default: Rs.50,000)</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
