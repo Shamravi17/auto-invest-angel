@@ -716,3 +716,44 @@ async def send_test_notification(notification: TelegramNotification):
     config = BotConfig(**config_doc)
     await send_telegram_notification(notification.message, config)
     return {"success": True}
+
+@app.post("/api/sync-portfolio")
+async def sync_portfolio_to_watchlist():
+    """Sync Angel One portfolio holdings to watchlist"""
+    try:
+        portfolio = await get_portfolio()
+        synced = 0
+        
+        for holding in portfolio['holdings']:
+            symbol = holding.get('tradingsymbol')
+            token = holding.get('symboltoken', '')
+            exchange = holding.get('exchange', 'NSE')
+            quantity = int(holding.get('quantity', 0))
+            avg_price = float(holding.get('averageprice', 0))
+            
+            # Check if already in watchlist
+            existing = await db.watchlist.find_one({"symbol": symbol})
+            
+            if not existing:
+                # Add to watchlist with hold action by default
+                item = WatchlistItem(
+                    symbol=symbol,
+                    exchange=exchange,
+                    symbol_token=token,
+                    action="hold",
+                    quantity=quantity,
+                    avg_price=avg_price,
+                    notes=f"Synced from portfolio"
+                )
+                await db.watchlist.insert_one(item.model_dump())
+                synced += 1
+            else:
+                # Update quantity and avg_price from portfolio
+                await db.watchlist.update_one(
+                    {"symbol": symbol},
+                    {"$set": {"quantity": quantity, "avg_price": avg_price}}
+                )
+        
+        return {"success": True, "synced": synced, "message": f"Synced {synced} holdings to watchlist"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
