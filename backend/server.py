@@ -297,6 +297,7 @@ async def update_credentials(credentials: Credentials):
 async def authenticate_angel_one():
     global smart_api, auth_tokens
     
+    start_time = datetime.now()
     try:
         creds = await get_credentials()
         
@@ -309,22 +310,66 @@ async def authenticate_angel_one():
         totp_code = totp.now()
         
         # Use MPIN instead of password as per Angel One's new policy
+        request_data = {
+            "clientCode": creds["client_id"],
+            "totp": totp_code
+            # Not logging password/mpin for security
+        }
+        
         session = smart_api.generateSession(
             clientCode=creds["client_id"],
             password=creds["mpin"],  # Use MPIN as password
             totp=totp_code
         )
         
+        execution_time = (datetime.now() - start_time).total_seconds() * 1000
+        
         if session['status']:
             auth_tokens = session['data']
             logger.info("Angel One authentication successful")
+            
+            # Log successful authentication
+            await log_angel_one_api_call(
+                endpoint="/user/login",
+                method="POST",
+                request_data=request_data,
+                response_data={"status": "success", "message": "Authentication successful"},
+                status_code=200,
+                execution_time_ms=execution_time
+            )
             return True
         else:
-            logger.error(f"Angel One auth failed: {session.get('message', 'Unknown error')}")
+            error_msg = session.get('message', 'Unknown error')
+            logger.error(f"Angel One auth failed: {error_msg}")
+            
+            # Log failed authentication
+            await log_angel_one_api_call(
+                endpoint="/user/login",
+                method="POST",
+                request_data=request_data,
+                response_data=session,
+                status_code=401,
+                error=error_msg,
+                execution_time_ms=execution_time
+            )
             return False
             
     except Exception as e:
-        logger.error(f"Angel One authentication error: {str(e)}")
+        execution_time = (datetime.now() - start_time).total_seconds() * 1000
+        error_msg = str(e)
+        logger.error(f"Angel One authentication error: {error_msg}")
+        
+        # Log exception
+        await log_angel_one_api_call(
+            endpoint="/user/login",
+            method="POST",
+            request_data={"error": "Exception during auth"},
+            response_data=None,
+            status_code=500,
+            error=error_msg,
+            execution_time_ms=execution_time
+        )
+        
         smart_api = None
         auth_tokens = None
         return False
