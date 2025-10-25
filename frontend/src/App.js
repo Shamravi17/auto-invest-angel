@@ -44,6 +44,12 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (config && !tempConfig) {
+      setTempConfig({...config});
+    }
+  }, [config]);
+
   const fetchData = async () => {
     try {
       const [statusRes, configRes, watchlistRes, logsRes, portfolioRes, analysesRes] = await Promise.all([
