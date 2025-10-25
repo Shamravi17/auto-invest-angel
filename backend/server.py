@@ -865,6 +865,76 @@ async def sync_portfolio_to_watchlist():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# Executed Orders
+@app.get("/api/executed-orders")
+async def get_executed_orders(order_type: Optional[str] = None, limit: int = 100):
+    """Get executed orders with optional filtering"""
+    query = {"order_type": order_type} if order_type else {}
+    orders = await db.executed_orders.find(query, {"_id": 0}).sort("timestamp", -1).limit(limit).to_list(limit)
+    return orders
+
+# Performance Summary
+@app.get("/api/performance-summary")
+async def get_performance_summary():
+    """Get performance metrics"""
+    try:
+        # Get all executed orders
+        orders = await db.executed_orders.find({}, {"_id": 0}).to_list(1000)
+        
+        # Calculate monthly/yearly P&L
+        now = datetime.now(timezone.utc)
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        year_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        
+        monthly_pnl = sum(o.get('profit_loss', 0) for o in orders if o.get('profit_loss') and o.get('timestamp', '') >= month_start.isoformat())
+        yearly_pnl = sum(o.get('profit_loss', 0) for o in orders if o.get('profit_loss') and o.get('timestamp', '') >= year_start.isoformat())
+        
+        # Get portfolio for top/worst performers
+        portfolio = await get_portfolio()
+        holdings = portfolio['holdings']
+        
+        performers = []
+        for h in holdings:
+            qty = int(h.get('quantity', 0))
+            avg = float(h.get('averageprice', 0))
+            ltp = float(h.get('ltp', 0))
+            if avg > 0 and qty > 0:
+                pnl_pct = ((ltp - avg) / avg) * 100
+                performers.append({
+                    "symbol": h.get('tradingsymbol'),
+                    "pnl_pct": pnl_pct,
+                    "pnl_amount": (ltp - avg) * qty
+                })
+        
+        performers.sort(key=lambda x: x['pnl_pct'], reverse=True)
+        
+        return {
+            "monthly_pnl": monthly_pnl,
+            "yearly_pnl": yearly_pnl,
+            "total_orders": len(orders),
+            "top_performers": performers[:5] if performers else [],
+            "worst_performers": performers[-5:] if len(performers) >= 5 else []
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# LLM Prompt Logs
+@app.get("/api/llm-logs")
+async def get_llm_logs(limit: int = 50):
+    """Get LLM prompt logs"""
+    logs = await db.llm_prompt_logs.find({}, {"_id": 0}).sort("timestamp", -1).limit(limit).to_list(limit)
+    return logs
+
+# Available LLM Models
+@app.get("/api/llm-models")
+async def get_available_models():
+    """Get list of available LLM models"""
+    return {
+        "openai": ["gpt-3.5-turbo", "gpt-4", "gpt-4-turbo", "gpt-4o", "gpt-4o-mini", "gpt-5", "o1", "o1-mini"],
+        "emergent": ["gpt-4o-mini", "gpt-4o", "gpt-5", "o1", "o1-mini"],
+        "supports_custom": True
+    }
+
 @app.post("/api/analyze-portfolio")
 async def analyze_portfolio():
     """Get LLM analysis of entire portfolio"""
