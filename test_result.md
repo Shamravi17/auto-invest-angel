@@ -108,6 +108,8 @@ user_problem_statement: |
   2. ✅ FIXED: Automatic bot runs should check market status FIRST and abort if market is closed
   3. ✅ FIXED: LLM calls not being made during manual bot runs (NoneType formatting error)
   4. ✅ FIXED: Market Days tab should show latest entries first
+  5. ✅ FIXED: Add execution status to distinguish skipped orders due to auto_execute_trades flag
+  6. ✅ IMPLEMENTED: Add ISIN numbers (fetched from Angel One) to all LLM calls for better analysis
   
   Previous resolved issues:
   - Portfolio analysis and LLM logging (resolved)
