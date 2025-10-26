@@ -381,9 +381,6 @@ function App() {
               <p className="text-sm text-slate-500 mt-1">From bot trades</p>
             </CardContent>
           </Card>
-              <p className="text-sm text-slate-500 mt-1">Completed</p>
-            </CardContent>
-          </Card>
 
           <Card data-testid="scheduler-card" className="bg-white/90 backdrop-blur border-slate-200 hover:shadow-xl transition-all duration-300">
             <CardHeader className="pb-3">
