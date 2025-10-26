@@ -1222,13 +1222,14 @@ async def run_trading_bot(manual_trigger: bool = False):
     Run trading bot
     manual_trigger: If True, bypasses market status check (for "Force Run" button)
     """
-    logger.info(f"Trading bot started (manual_trigger={manual_trigger})")
+    logger.info(f"🤖 Trading bot started (manual_trigger={manual_trigger})")
     
     today_ist = datetime.now(IST).date().isoformat()
     
     try:
-        # Check market status (skip for manual triggers)
+        # STEP 1: Check market status FIRST for automatic runs (before any other processing)
         if not manual_trigger:
+            logger.info("📊 Checking market status for automatic run...")
             market_open = await is_market_open()
             
             # Log market state
@@ -1236,13 +1237,15 @@ async def run_trading_bot(manual_trigger: bool = False):
                 date=today_ist,
                 market_status="Open" if market_open else "Closed",
                 bot_executed=market_open,
-                reason=None if market_open else "Market closed"
+                reason=None if market_open else "Market closed - automatic execution aborted"
             )
             await db.market_state_logs.insert_one(market_log.model_dump())
             
             if not market_open:
-                logger.info("⏸️ Market is closed. Bot execution skipped.")
+                logger.info("⏸️ Market is CLOSED. Automatic bot execution aborted.")
                 return
+            else:
+                logger.info("✓ Market is OPEN. Proceeding with bot execution...")
         else:
             logger.info("🔧 Manual trigger - bypassing market status check")
             
@@ -1255,13 +1258,14 @@ async def run_trading_bot(manual_trigger: bool = False):
             )
             await db.market_state_logs.insert_one(market_log.model_dump())
         
-        # Get config
+        # STEP 2: Get config
         config_doc = await db.bot_config.find_one({"_id": "main"})
         if not config_doc:
-            logger.error("No bot config found")
+            logger.error("❌ No bot config found")
             return
         
         config = BotConfig(**config_doc)
+        logger.info(f"📋 Config loaded - auto_execute_trades={config.auto_execute_trades}")
         
         if not config.is_active:
             logger.info("Bot is not active")
