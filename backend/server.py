@@ -776,7 +776,9 @@ async def get_llm_decision(symbol: str, action: str, market_data: Dict, config: 
             # SPECIAL CASE: Re-entry Decision
             if awaiting_reentry and exit_price > 0 and exit_amount > 0:
                 # This position was exited, now check if it's time to re-enter
-                price_drop_pct = ((exit_price - current_price) / exit_price * 100) if exit_price > 0 else 0
+                # Calculate price change (positive = price went up, negative = price dropped)
+                price_change_pct = ((current_price - exit_price) / exit_price * 100) if exit_price > 0 else 0
+                price_direction = "INCREASED" if price_change_pct > 0 else "DECREASED" if price_change_pct < 0 else "UNCHANGED"
                 
                 reentry_prompt = f"""
 You are a stock market analyst. This SIP position was EXITED for profit booking. Now decide if it's time to RE-ENTER.
@@ -784,41 +786,64 @@ You are a stock market analyst. This SIP position was EXITED for profit booking.
 **STOCK**: {symbol}{isin_info}
 **CURRENT PRICE**: ₹{current_price:.2f}
 
-**EXIT DETAILS** (When position was sold):
+**EXIT DETAILS** (When position was sold for profit):
 - Exit Price: ₹{exit_price:.2f}
 - Exit Quantity: {exit_quantity} units
 - Exit Amount Received: ₹{exit_amount:.2f}
 - Exit Date: {exit_date}
-- Price Drop Since Exit: {price_drop_pct:.1f}% (Current ₹{current_price:.2f} vs Exit ₹{exit_price:.2f})
+- **Price Change Since Exit: {price_change_pct:+.1f}%** ({price_direction}: ₹{exit_price:.2f} → ₹{current_price:.2f})
 
 **RESERVED AMOUNT FOR RE-ENTRY**: ₹{exit_amount:.2f}
 
 **USER'S ANALYSIS PARAMETERS**:
 {config.analysis_parameters}
 
-**YOUR TASK**: Decide if NOW is a good time to RE-ENTER this position.
+**YOUR TASK**: Decide if NOW is a GOOD time to RE-ENTER this position.
 
-**RE-ENTRY CRITERIA**:
-1. Price has dropped sufficiently from exit price (ideally 5-15% correction)
-2. Technical indicators show support/reversal (RSI oversold, volume pickup)
-3. Fundamentals remain strong (no deterioration in business)
-4. Market sentiment improving or stabilizing
-5. Good risk-reward ratio for re-entry
+**CRITICAL RE-ENTRY RULES**:
 
-**IMPORTANT**:
-- You have ₹{exit_amount:.2f} reserved specifically for this re-entry
-- Don't wait too long - if price keeps rising, re-entry becomes expensive
-- Be decisive but ensure there's a reasonable margin of safety
-- Consider if stock has found support at current levels
+1. **ONLY RE-ENTER IF PRICE HAS DROPPED BELOW OR NEAR EXIT PRICE**
+   - Ideal: Price dropped 5-15% from exit (good discount)
+   - Acceptable: Price at or slightly below exit (0% to -5%)
+   - DO NOT re-enter if price is significantly ABOVE exit (expensive!)
+
+2. **Price Analysis**:
+   - If current price > exit price: Usually WAIT (price too high)
+   - If current price ≈ exit price: Consider other factors (support, RSI)
+   - If current price < exit price: Good opportunity (buying at discount)
+
+3. **Technical Confirmation** (secondary factors):
+   - RSI: Below 40 (oversold) is positive
+   - Support: Price at strong support level
+   - Volume: Increased buying volume shows confidence
+   - Trend: Downtrend reversing or consolidating
+
+4. **Timing Strategy**:
+   - Don't chase - if price keeps rising, accept you exited well
+   - Be patient - wait for proper pullback/correction
+   - Risk-reward - ensure better price than exit or strong bullish setup
 
 **RESPONSE FORMAT** (must follow exactly):
 REENTRY_ACTION: EXECUTE or WAIT
 AMOUNT: {exit_amount:.2f}
-REASONING: <2-3 line explanation covering price levels, indicators, and timing>
+REASONING: <Brief explanation of price levels, indicators, and timing decision>
 
-**EXAMPLES**:
-- "REENTRY_ACTION: EXECUTE\\nAMOUNT: {exit_amount:.2f}\\nREASONING: Price corrected 12% from exit (₹{exit_price:.2f} to ₹{current_price:.2f}). RSI at 32 shows oversold. Strong support at current level. Good re-entry point."
-- "REENTRY_ACTION: WAIT\\nAMOUNT: 0\\nREASONING: Only 3% correction from exit price. RSI still at 68. Wait for deeper pullback to ₹{exit_price * 0.9:.2f} or RSI below 40 for better entry."
+**GOOD RE-ENTRY EXAMPLES**:
+✅ Exit ₹100, Now ₹90 (-10%): "REENTRY_ACTION: EXECUTE\\nAMOUNT: {exit_amount:.2f}\\nREASONING: Price dropped 10% from exit, now at ₹90. RSI 35 oversold. Strong support at ₹88. Good discount for re-entry."
+
+✅ Exit ₹100, Now ₹98 (-2%): "REENTRY_ACTION: EXECUTE\\nAMOUNT: {exit_amount:.2f}\\nREASONING: Price slightly below exit at ₹98. Strong support confirmed, volume pickup, RSI 42. Early re-entry before bounce."
+
+**BAD RE-ENTRY EXAMPLES**:
+❌ Exit ₹100, Now ₹110 (+10%): "REENTRY_ACTION: WAIT\\nAMOUNT: 0\\nREASONING: Price up 10% from exit to ₹110. Expensive re-entry. Wait for pullback to ₹95-100 or skip if momentum continues."
+
+❌ Exit ₹100, Now ₹105 (+5%): "REENTRY_ACTION: WAIT\\nAMOUNT: 0\\nREASONING: Price higher at ₹105. RSI 65 near overbought. No discount, poor risk-reward. Exit was good, don't chase."
+
+❌ Exit ₹100, Now ₹95 (-5%), but RSI 70: "REENTRY_ACTION: WAIT\\nAMOUNT: 0\\nREASONING: Though price dropped to ₹95, RSI 70 overbought suggests short-term correction. Wait for RSI below 50 or deeper drop to ₹90."
+
+**REMEMBER**: 
+- Primary criterion is PRICE DISCOUNT from exit
+- Don't re-enter at higher prices unless extremely strong bullish setup
+- It's okay to WAIT - better opportunities will come!
 """
                 
                 try:
