@@ -941,8 +941,12 @@ REASONING: <Explain price level, indicators, and why this specific amount>
                     response = f"SIP_ACTION: SKIP\nAMOUNT: 0\nREASONING: LLM error - {str(llm_error)[:100]}"
 
         elif action == "sell":
-            current_value = item.get('quantity', 0) * market_data.get('ltp', 0)
-            investment = item.get('quantity', 0) * item.get('avg_price', 0)
+            quantity = item.get('quantity', 0) or 0
+            avg_price = item.get('avg_price', 0) or 0
+            ltp = market_data.get('ltp', 0) or 0
+            
+            current_value = quantity * ltp
+            investment = quantity * avg_price
             pnl = current_value - investment
             pnl_pct = (pnl / investment * 100) if investment > 0 else 0
             
@@ -950,9 +954,9 @@ REASONING: <Explain price level, indicators, and why this specific amount>
 You are a stock market analyst. Analyze whether to sell this holding.
 
 **STOCK**: {symbol}
-**QUANTITY**: {item.get('quantity', 0)}
-**AVG PRICE**: ₹{item.get('avg_price', 0):.2f}
-**CURRENT PRICE**: ₹{market_data.get('ltp', 0):.2f}
+**QUANTITY**: {quantity}
+**AVG PRICE**: ₹{avg_price:.2f}
+**CURRENT PRICE**: ₹{ltp:.2f}
 **INVESTMENT**: ₹{investment:.2f}
 **CURRENT VALUE**: ₹{current_value:.2f}
 **P&L**: ₹{pnl:.2f} ({pnl_pct:.2f}%)
@@ -973,15 +977,19 @@ REASONING: <brief 2-3 line explanation>
 5. Consider brokerage charges (~0.5%) in your decision
 """
         elif action == "buy":
+            quantity = item.get('quantity', 0) or 0
+            avg_price = item.get('avg_price', 0) or 0
+            ltp = market_data.get('ltp', 0) or 0
+            
             prompt = f"""
 You are a stock market analyst. Analyze this stock for BUY action.
 
 **STOCK**: {symbol}
-**CURRENT PRICE**: ₹{market_data.get('ltp', 0):.2f}
+**CURRENT PRICE**: ₹{ltp:.2f}
 
 **PORTFOLIO CONTEXT**:
-- Current Quantity: {item.get('quantity', 0)}
-- Avg Price: ₹{item.get('avg_price', 0) or 0:.2f}
+- Current Quantity: {quantity}
+- Avg Price: ₹{avg_price:.2f}
 
 **USER'S ANALYSIS PARAMETERS**:
 {config.analysis_parameters}
