@@ -1373,12 +1373,15 @@ async def run_trading_bot(manual_trigger: bool = False):
                 order_id=None
             )
             
-            # Execute trades if auto_execute is enabled
+            # Execute trades based on auto_execute_trades flag
+            # IMPORTANT: This flag applies to BOTH manual and automatic triggers
+            # manual_trigger only affects market status check, not order execution
             order_result = None
             logger.info(f"💰 Order Execution Check for {symbol}:")
-            logger.info(f"   - auto_execute_trades flag: {config.auto_execute_trades}")
+            logger.info(f"   - auto_execute_trades flag: {config.auto_execute_trades} (controls order placement)")
             logger.info(f"   - LLM decision: {llm_result['decision']}")
-            logger.info(f"   - Manual trigger: {manual_trigger}")
+            logger.info(f"   - Trigger type: {'Manual' if manual_trigger else 'Automatic'}")
+            logger.info(f"   Note: auto_execute_trades flag applies to BOTH manual and automatic runs")
             
             if not config.auto_execute_trades:
                 logger.info(f"⏭️ SKIPPING order execution for {symbol} - auto_execute_trades is disabled")
