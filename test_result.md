@@ -103,11 +103,14 @@
 #====================================================================================================
 
 user_problem_statement: |
-  User reported the following issues:
-  1. Portfolio analysis fails even though OpenAI connection works
-  2. Analysis logs not showing LLM calls for both OpenAI and Emergent LLM
-  3. Need to move Angel One credentials from .env to database with encryption
-  4. All timestamps should be in IST format
+  User reported the following critical issues:
+  1. auto_execute_trades flag not being respected - bot executes orders even when flag is False
+  2. Automatic bot runs should check market status FIRST and abort if market is closed (not just skip)
+  
+  Previous resolved issues:
+  - Portfolio analysis and LLM logging (resolved)
+  - Angel One credentials in database with encryption (resolved)
+  - IST timestamp format (resolved)
 
 backend:
   - task: "Move Angel One credentials to database with encryption"
