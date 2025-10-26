@@ -438,6 +438,10 @@ function App() {
               <TrendingUp className="w-4 h-4 mr-2" />
               Executed Orders
             </TabsTrigger>
+            <TabsTrigger value="market-logs" data-testid="market-logs-tab" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+              <Calendar className="w-4 h-4 mr-2" />
+              Market Days
+            </TabsTrigger>
           </TabsList>
 
           {/* Portfolio Tab */}
