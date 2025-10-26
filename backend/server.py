@@ -1393,8 +1393,8 @@ async def run_trading_bot(manual_trigger: bool = False):
                 }
                 isin = None
             
-            # Get LLM decision with ISIN
-            llm_result = await get_llm_decision(symbol, action, market_data, config, item, portfolio, action_counts.get('sip', 0), isin)
+            # Get LLM decision with ISIN and adjusted available balance
+            llm_result = await get_llm_decision(symbol, action, market_data, config, item, {"holdings": portfolio['holdings'], "available_cash": available_balance}, action_counts.get('sip', 0), isin)
             
             # Log analysis
             analysis_log = AnalysisLog(
