@@ -1384,12 +1384,16 @@ async def run_trading_bot(manual_trigger: bool = False):
             logger.info(f"   Note: auto_execute_trades flag applies to BOTH manual and automatic runs")
             
             if not config.auto_execute_trades:
-                logger.info(f"⏭️ SKIPPING order execution for {symbol} - auto_execute_trades is disabled")
-                logger.info(f"   Analysis completed but no order will be placed")
+                logger.warning(f"⏭️ SKIPPING order execution for {symbol}")
+                logger.warning(f"   Reason: auto_execute_trades is DISABLED")
+                logger.warning(f"   Trigger type: {'Manual' if manual_trigger else 'Automatic'}")
+                logger.warning(f"   LLM analysis completed, but NO ORDER will be placed to Angel One")
             elif llm_result['decision'] not in ["EXECUTE", "SELL", "EXIT_AND_REENTER", "EXIT"]:
-                logger.info(f"⏭️ SKIPPING order execution for {symbol} - LLM decision is {llm_result['decision']} (not an execution decision)")
+                logger.info(f"⏭️ SKIPPING order execution for {symbol}")
+                logger.info(f"   Reason: LLM decision is '{llm_result['decision']}' (not an execution decision)")
             elif config.auto_execute_trades and llm_result['decision'] in ["EXECUTE", "SELL", "EXIT_AND_REENTER", "EXIT"]:
                 logger.info(f"✅ PROCEEDING with order execution for {symbol}")
+                logger.info(f"   auto_execute_trades is ENABLED and LLM decided to execute")
                 try:
                     # Determine transaction type and quantity
                     if llm_result['decision'] == "EXIT" and action == "sip":
