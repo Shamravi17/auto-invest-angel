@@ -918,15 +918,15 @@ AMOUNT: <dynamically calculated amount based on above rules>
 REASONING: <Explain price level, indicators, and why this specific amount>
 
 **EXAMPLES WITH DYNAMIC AMOUNTS**:
-- Price ₹85, Avg ₹100 (0.85x): "SIP_ACTION: EXECUTE\\nAMOUNT: 9000\\nREASONING: Price 15% below avg at ₹85 vs ₹100. RSI at 35 shows oversold. Increased to 1.8x (₹9000) to accumulate aggressively."
+- Price ₹85, Avg ₹100 (0.85x): "SIP_ACTION: EXECUTE\\nAMOUNT: 9000\\nREASONING: Price 15% below avg at ₹85 vs ₹100. RSI at 35 shows oversold. Increased to ₹9000 to accumulate aggressively."
 
-- Price ₹105, Avg ₹100 (1.05x): "SIP_ACTION: EXECUTE\\nAMOUNT: 4500\\nREASONING: Price 5% above avg. Momentum positive but reducing to 0.9x (₹4500) to manage valuation risk."
+- Price ₹105, Avg ₹100 (1.05x): "SIP_ACTION: EXECUTE\\nAMOUNT: 4500\\nREASONING: Price 5% above avg. Momentum positive but reducing to ₹4500 to manage valuation risk."
 
-- Price ₹130, Avg ₹100 (1.3x): "SIP_ACTION: EXECUTE\\nAMOUNT: 2000\\nREASONING: Price 30% above avg showing extended valuations. RSI 68. Minimal investment at 0.4x (₹2000) to maintain discipline."
+- Price ₹130, Avg ₹100 (1.3x): "SIP_ACTION: EXECUTE\\nAMOUNT: 2000\\nREASONING: Price 30% above avg showing extended valuations. RSI 68. Minimal investment at ₹2000 to maintain discipline."
 
 - Price ₹95, Avg ₹100 (0.95x), RSI 75: "SIP_ACTION: SKIP\\nREASONING: Though price near avg, RSI 75 overbought. Market overheated. Skip this cycle."
 
-**REMEMBER**: Your amount suggestion should clearly reflect the price level dynamics!
+**REMEMBER**: Your amount suggestion should clearly reflect the price level dynamics and available balance!
 """
                 
                 try:
