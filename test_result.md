@@ -199,6 +199,48 @@ backend:
           
           Conclusion: Market check works correctly - automatic runs abort if closed, manual runs bypass
   
+  - task: "Add execution status to distinguish skipped orders due to auto_execute_trades flag"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py, /app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: false
+        agent: "user"
+        comment: |
+          User reported: In analysis logs, even though orders are skipped due to auto_execute_trades being disabled,
+          they don't have a clear status. Need different status to show why order was not executed.
+      - working: true
+        agent: "main"
+        comment: |
+          ✅ FIXED - Added execution_status field to AnalysisLog model
+          
+          Backend Changes (server.py):
+          - Added execution_status field to AnalysisLog model (line 164)
+          - Possible values:
+            * "EXECUTED" - Order successfully placed in Angel One
+            * "SKIPPED_AUTO_EXECUTE_DISABLED" - Skipped because auto_execute_trades flag is OFF
+            * "SKIPPED_LLM_DECISION" - Skipped because LLM decided SKIP/HOLD
+            * "FAILED" - Order execution failed
+          - Updated bot logic to set appropriate status (lines 1387, 1408, 1410, 1493-1498, 1505, 1509)
+          
+          Frontend Changes (App.js):
+          - Added status badges for each execution_status value
+          - Color coding:
+            * Green - Executed in Angel One
+            * Amber/Orange - Skipped (Auto-Execute OFF)
+            * Blue - Skipped (LLM Decision)
+            * Red - Failed
+          - Maintained backward compatibility for older logs without execution_status
+          
+          Verification:
+          - ✅ Tested with auto_execute_trades=False
+          - ✅ Analysis log shows execution_status="SKIPPED_AUTO_EXECUTE_DISABLED"
+          - ✅ UI displays amber badge: "⏭️ Skipped (Auto-Execute OFF)"
+          - ✅ Clear distinction between different skip reasons
+  
   - task: "Fix LLM calls not being made during manual bot runs"
     implemented: true
     working: true
