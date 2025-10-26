@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import '@/App.css';
 import axios from 'axios';
 import { Toaster, toast } from 'sonner';
-import { Activity, Bot, Settings, TrendingUp, BarChart3, Bell, Plus, Trash2, Play, Pause, RefreshCw, Brain, Zap, Eye, Wallet, DollarSign, Edit2, Save } from 'lucide-react';
+import { Activity, Bot, Settings, TrendingUp, BarChart3, Bell, Plus, Trash2, Play, Pause, RefreshCw, Brain, Zap, Eye, Wallet, DollarSign, Edit2, Save, Calendar } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
