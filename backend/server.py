@@ -1430,6 +1430,16 @@ async def run_trading_bot(manual_trigger: bool = False):
                         quantity = item.get('quantity', 0)
                         order_type_desc = "SIP_PROFIT_BOOKING"
                         logger.info(f"Executing SIP profit booking (EXIT): Sell {quantity} units of {symbol}")
+                        
+                        # Mark for re-entry after successful order
+                        exit_value = quantity * market_data.get('ltp', 0)
+                        should_mark_reentry = True
+                        exit_info = {
+                            "exit_price": market_data.get('ltp', 0),
+                            "exit_amount": exit_value,
+                            "exit_quantity": quantity,
+                            "exit_date": datetime.now(IST).date().isoformat()
+                        }
                     
                     elif llm_result['decision'] == "SELL":
                         # Regular sell
