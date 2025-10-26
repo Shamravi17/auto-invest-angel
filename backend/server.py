@@ -1543,6 +1543,27 @@ async def run_trading_bot(manual_trigger: bool = False):
                             logger.info(f"✓ Marked {symbol} for re-entry: Exit amount ₹{exit_info['exit_amount']:.2f} at ₹{exit_info['exit_price']:.2f}")
                             logger.info(f"  → SIP will resume when price corrects and conditions are favorable")
                         
+                        # Handle SIP re-entry completion
+                        elif (llm_result['decision'] == "EXECUTE" and action == "sip" and 
+                              order_result.get('success') and item.get('awaiting_reentry', False)):
+                            
+                            # Clear re-entry flags since we've successfully re-entered
+                            clear_reentry_fields = {
+                                "awaiting_reentry": False,
+                                "exit_price": None,
+                                "exit_amount": None,
+                                "exit_date": None,
+                                "exit_quantity": None
+                            }
+                            
+                            await db.watchlist.update_one(
+                                {"id": item['id']},
+                                {"$set": clear_reentry_fields}
+                            )
+                            
+                            logger.info(f"✓ Completed re-entry for {symbol}: Invested ₹{sip_amount:.2f}")
+                            logger.info(f"  → Re-entry flags cleared, normal SIP cycle resumed")
+                        
                         # Update analysis log with execution results
                         analysis_log.executed = order_result.get('success', False)
                         analysis_log.order_id = order_result.get('order_id')
