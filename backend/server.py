@@ -118,8 +118,6 @@ class WatchlistItem(BaseModel):
     exchange: str = "NSE"
     symbol_token: str
     action: str = "hold"  # sip, buy, sell, hold
-    sip_amount: Optional[float] = None
-    sip_frequency_days: Optional[int] = 30
     last_sip_date: Optional[str] = None  # Last SIP execution date (IST)
     next_action_date: Optional[str] = None
     re_entry_price: Optional[float] = None  # Target price for re-entry after exit
