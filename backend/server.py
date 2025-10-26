@@ -1508,6 +1508,30 @@ async def run_trading_bot(manual_trigger: bool = False):
                             )
                             logger.info(f"Updated last_sip_date for {symbol} to {today_ist}")
                         
+                        # Handle SIP exit re-entry marking
+                        if (llm_result['decision'] == "EXIT" and action == "sip" and 
+                            order_result.get('success') and 'should_mark_reentry' in locals() and 
+                            should_mark_reentry):
+                            
+                            # Update watchlist item for re-entry
+                            update_fields = {
+                                "awaiting_reentry": True,
+                                "exit_price": exit_info["exit_price"],
+                                "exit_amount": exit_info["exit_amount"],
+                                "exit_date": exit_info["exit_date"],
+                                "exit_quantity": exit_info["exit_quantity"],
+                                "quantity": 0,  # Reset quantity since we sold everything
+                                "avg_price": 0  # Reset avg price
+                            }
+                            
+                            await db.watchlist.update_one(
+                                {"id": item['id']},
+                                {"$set": update_fields}
+                            )
+                            
+                            logger.info(f"✓ Marked {symbol} for re-entry: Exit amount ₹{exit_info['exit_amount']:.2f} at ₹{exit_info['exit_price']:.2f}")
+                            logger.info(f"  → SIP will resume when price corrects and conditions are favorable")
+                        
                         # Update analysis log with execution results
                         analysis_log.executed = order_result.get('success', False)
                         analysis_log.order_id = order_result.get('order_id')
