@@ -1136,6 +1136,33 @@ async def send_telegram_notification(message: str, config: BotConfig):
     except Exception as e:
         logger.error(f"Telegram notification error: {str(e)}")
 
+# ===== MARKET STATUS CHECK =====
+async def is_market_open() -> bool:
+    """Check if NSE market is open"""
+    try:
+        import aiohttp
+        async with aiohttp.ClientSession() as session:
+            headers = {
+                'User-Agent': 'Mozilla/5.0',
+                'Accept': 'application/json'
+            }
+            async with session.get('https://www.nseindia.com/api/marketStatus', headers=headers, timeout=10) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    # Check if any market is open
+                    if isinstance(data, dict) and 'marketState' in data:
+                        for market in data['marketState']:
+                            if market.get('marketStatus') == 'Open':
+                                logger.info(f"Market is OPEN: {market.get('market', 'Unknown')}")
+                                return True
+                    logger.info("Market is CLOSED")
+                    return False
+    except Exception as e:
+        logger.warning(f"Could not check market status: {str(e)}")
+        # Default to True if check fails (don't block trading)
+        return True
+    return False
+
 # ===== BOT SCHEDULING =====
 async def schedule_bot(config: BotConfig):
     # Remove existing jobs
