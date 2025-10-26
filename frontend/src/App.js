@@ -357,32 +357,27 @@ function App() {
             </CardContent>
           </Card>
 
-          <Card data-testid="watchlist-card" className="bg-white/90 backdrop-blur border-slate-200 hover:shadow-xl transition-all duration-300">
+          <Card data-testid="profit-card" className="bg-white/90 backdrop-blur border-slate-200 hover:shadow-xl transition-all duration-300">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg font-semibold text-slate-700">Watchlist</CardTitle>
-                <TrendingUp className="w-5 h-5 text-blue-600" />
+                <CardTitle className="text-lg font-semibold text-slate-700">Total Profit</CardTitle>
+                <TrendingUp className="w-5 h-5 text-purple-600" />
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-blue-600" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-                {status.watchlist_symbols || 0}
+              <p className="text-3xl font-bold text-purple-600" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                {formatCurrency(
+                  executedOrders
+                    .filter(o => o.transaction_type === 'SELL' && o.status === 'SUCCESS')
+                    .reduce((sum, o) => sum + o.total_value, 0) -
+                  executedOrders
+                    .filter(o => o.transaction_type === 'BUY' && o.status === 'SUCCESS')
+                    .reduce((sum, o) => sum + o.total_value, 0)
+                )}
               </p>
-              <p className="text-sm text-slate-500 mt-1">Symbols monitored</p>
+              <p className="text-sm text-slate-500 mt-1">From bot trades</p>
             </CardContent>
           </Card>
-
-          <Card data-testid="analyses-card" className="bg-white/90 backdrop-blur border-slate-200 hover:shadow-xl transition-all duration-300">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg font-semibold text-slate-700">Analyses</CardTitle>
-                <BarChart3 className="w-5 h-5 text-indigo-600" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold text-indigo-600" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-                {status.analyses_completed || 0}
-              </p>
               <p className="text-sm text-slate-500 mt-1">Completed</p>
             </CardContent>
           </Card>
