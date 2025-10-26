@@ -375,27 +375,29 @@ test_plan:
 agent_communication:
   - agent: "main"
     message: |
-      ✅ BOTH CRITICAL ISSUES FIXED AND VERIFIED
-      ==========================================
+      ✅ ALL ISSUES FIXED AND VERIFIED
+      ==================================
       
-      1. auto_execute_trades flag behavior:
-         - Flag now correctly controls order placement for BOTH manual and automatic triggers
-         - Manual trigger ONLY bypasses market status check, NOT the auto_execute_trades flag
+      1. auto_execute_trades flag behavior: ✅ WORKING
+         - Flag correctly controls order placement for BOTH manual and automatic triggers
          - Comprehensive logging added for debugging
-         - VERIFIED with actual test runs
+         - Verified with actual test runs
       
-      2. Market status check for automatic runs:
+      2. Market status check for automatic runs: ✅ WORKING
          - Market check happens FIRST (before config loading)
          - Bot immediately aborts if market is closed (automatic runs only)
          - Manual triggers correctly bypass market check
-         - Fixed is_market_open() to check for "open" OR "normal" status
-         - Changed fail-safe behavior: defaults to False (closed) if API fails
-         - VERIFIED with actual test runs
+         - Fixed is_market_open() to handle "open" OR "normal" status
+         - Verified with actual test runs
       
-      Key Behavior Summary:
-      - manual_trigger flag: Controls whether to bypass MARKET STATUS check only
-      - auto_execute_trades flag: Controls whether to PLACE ORDERS (applies to both manual and automatic)
-      - Bot ALWAYS performs LLM analysis regardless of these flags
+      3. LLM calls during manual runs: ✅ FIXED
+         - Root cause: NoneType formatting error in prompts
+         - Fixed by adding explicit None checks for all numeric fields
+         - Verified: LLM calls working, responses received and parsed correctly
       
-      All logs show clear, detailed messages for each decision point.
-      Ready for production use.
+      4. Market Days tab sorting: ✅ FIXED
+         - Changed to sort by timestamp (descending)
+         - Latest entries now appear first
+         - Verified with UI screenshot
+      
+      All critical functionality restored and working correctly!
