@@ -734,7 +734,7 @@ async def delete_watchlist_item(item_id: str):
     raise HTTPException(status_code=404, detail="Item not found")
 
 # ===== LLM DECISION LOGIC =====
-async def get_llm_decision(symbol: str, action: str, market_data: Dict, config: BotConfig, item: Dict, portfolio: Dict = None, total_sip_count: int = 0) -> Dict:
+async def get_llm_decision(symbol: str, action: str, market_data: Dict, config: BotConfig, item: Dict, portfolio: Dict = None, total_sip_count: int = 0, isin: str = None) -> Dict:
     """Get LLM decision for a trading action"""
     try:
         # Get API key
@@ -742,6 +742,9 @@ async def get_llm_decision(symbol: str, action: str, market_data: Dict, config: 
             api_key = config.openai_api_key
         else:
             api_key = os.environ.get('EMERGENT_LLM_KEY')
+        
+        # Build ISIN info string
+        isin_info = f"\n**ISIN**: {isin}" if isin else ""
         
         # Build prompt based on action
         if action == "sip":
@@ -767,7 +770,7 @@ async def get_llm_decision(symbol: str, action: str, market_data: Dict, config: 
                 exit_check_prompt = f"""
 You are a stock market analyst analyzing if this SIP position has reached its PEAK and should be EXITED for profit booking.
 
-**STOCK**: {symbol}
+**STOCK**: {symbol}{isin_info}
 **CURRENT PRICE**: ₹{current_price:.2f}
 **YOUR POSITION**:
 - Quantity: {quantity}
