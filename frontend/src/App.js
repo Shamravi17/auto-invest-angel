@@ -1387,7 +1387,7 @@ function App() {
                     {logs.map((log) => (
                       <div key={log.id} className="p-4 rounded-lg border bg-white">
                         <div className="flex items-start justify-between mb-3">
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 flex-wrap">
                             <Badge className={
                               log.llm_decision === 'EXECUTE' ? 'bg-green-100 text-green-800' : 
                               log.llm_decision === 'EXIT' ? 'bg-purple-100 text-purple-800' :
@@ -1400,12 +1400,35 @@ function App() {
                             <span className="font-semibold">{log.symbol}</span>
                             <span className="text-xs text-slate-500 capitalize">{log.action}</span>
                             
-                            {log.executed && (
+                            {/* Execution Status Badge */}
+                            {log.execution_status === 'EXECUTED' && (
+                              <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                ✓ Executed in Angel One
+                              </Badge>
+                            )}
+                            {log.execution_status === 'SKIPPED_AUTO_EXECUTE_DISABLED' && (
+                              <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
+                                ⏭️ Skipped (Auto-Execute OFF)
+                              </Badge>
+                            )}
+                            {log.execution_status === 'SKIPPED_LLM_DECISION' && (
+                              <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                ⏭️ Skipped (LLM Decision)
+                              </Badge>
+                            )}
+                            {log.execution_status === 'FAILED' && (
+                              <Badge variant="outline" className="text-xs bg-red-50 text-red-700 border-red-200">
+                                ✗ Failed
+                              </Badge>
+                            )}
+                            
+                            {/* Legacy badges for backward compatibility */}
+                            {!log.execution_status && log.executed && (
                               <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
                                 ✓ Order Placed
                               </Badge>
                             )}
-                            {log.error && (
+                            {!log.execution_status && log.error && (
                               <Badge variant="outline" className="text-xs bg-red-50 text-red-700 border-red-200">
                                 ✗ Failed
                               </Badge>
