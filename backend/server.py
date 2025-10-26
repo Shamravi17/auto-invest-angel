@@ -1005,12 +1005,16 @@ Provide your recommendation based on fundamentals and technical analysis.
 """
         else:
             # For other actions
+            quantity = item.get('quantity', 0) or 0
+            avg_price = item.get('avg_price', 0) or 0
+            ltp = market_data.get('ltp', 0) or 0
+            
             prompt = f"""
 You are a stock market analyst. Analyze this stock for {action.upper()} action.
 
 **STOCK**: {symbol}
-**CURRENT PRICE**: ₹{market_data.get('ltp', 0):.2f}
-**PORTFOLIO CONTEXT**: Quantity: {item.get('quantity', 0)}, Avg Price: ₹{item.get('avg_price', 0) or 0:.2f}
+**CURRENT PRICE**: ₹{ltp:.2f}
+**PORTFOLIO CONTEXT**: Quantity: {quantity}, Avg Price: ₹{avg_price:.2f}
 
 **USER'S ANALYSIS PARAMETERS**:
 {config.analysis_parameters}
