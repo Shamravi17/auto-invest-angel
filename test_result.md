@@ -270,9 +270,8 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Verify portfolio analysis works and logs are captured"
-    - "Verify credentials can be saved and loaded"
-    - "Verify all timestamps display in IST"
+    - "Fix auto_execute_trades flag to prevent order execution when disabled"
+    - "Market status check should abort automatic runs FIRST if market closed"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -280,16 +279,22 @@ test_plan:
 agent_communication:
   - agent: "main"
     message: |
-      Completed implementation of all requested features:
-      1. ✅ Portfolio analysis now working - LLM response properly extracted and displayed
-      2. ✅ LLM logs are now captured and displayed in new "LLM Logs" tab
-      3. ✅ Angel One credentials moved to database with Fernet encryption
-      4. ✅ All timestamps converted to IST format
-      5. ✅ Fixed Angel One authentication to use MPIN
+      Implemented fixes for two critical issues:
       
-      Manual testing completed successfully:
-      - Portfolio analysis executed and displayed correctly with IST timestamp
-      - LLM logs showing in new tab with full prompt/response details
-      - Credentials UI added to Control Panel with save functionality
+      1. ✅ auto_execute_trades flag: Added comprehensive logging to trace execution
+         - Logs flag value, LLM decision, manual trigger status
+         - Explicitly logs when orders are SKIPPED due to flag being False
+         - The conditional check was already correct, but now we have visibility
       
-      Ready for user verification.
+      2. ✅ Market status check for automatic runs:
+         - Moved market check to VERY FIRST step (before config loading)
+         - Returns immediately if market closed (aborts entire bot execution)
+         - Fixed is_market_open() to check for "open" OR "normal" status
+         - Changed default on API failure: now returns False (safe default)
+         - Manual triggers correctly bypass this check
+      
+      Ready for backend testing to verify:
+      - Scenario 1: auto_execute_trades=False, manual trigger → Should analyze but NOT place orders
+      - Scenario 2: auto_execute_trades=False, automatic trigger → Should analyze but NOT place orders
+      - Scenario 3: Automatic trigger when market closed → Should abort immediately
+      - Scenario 4: Manual trigger when market closed → Should bypass check and proceed
