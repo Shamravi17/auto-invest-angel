@@ -212,12 +212,24 @@ function App() {
   };
 
   const triggerAnalysis = async () => {
+    const confirmed = window.confirm(
+      '⚠️ Force Run Bot?\n\n' +
+      'This will bypass market status check and execute the bot immediately.\n\n' +
+      'The bot will:\n' +
+      '• Analyze all SIP/Buy/Sell items\n' +
+      '• Make LLM decisions\n' +
+      '• Execute orders if auto-execute is enabled\n\n' +
+      'Continue?'
+    );
+    
+    if (!confirmed) return;
+    
     try {
-      await axios.post(`${API}/run-bot`);
-      toast.success('Analysis triggered! Check logs in a moment.');
+      await axios.post(`${API}/run-bot?manual=true`);
+      toast.success('Bot force-run triggered! Check logs in a moment.');
       setTimeout(fetchData, 3000);
     } catch (error) {
-      toast.error('Failed to trigger analysis');
+      toast.error('Failed to trigger bot');
     }
   };
 
