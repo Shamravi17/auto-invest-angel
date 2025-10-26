@@ -1279,6 +1279,16 @@ async def run_trading_bot(manual_trigger: bool = False):
                 skipped += 1
                 continue
             
+            # Check SIP frequency (only once per day)
+            if action == 'sip':
+                last_sip_date = item.get('last_sip_date')
+                today_ist = datetime.now(IST).date().isoformat()
+                
+                if last_sip_date and last_sip_date == today_ist:
+                    logger.info(f"Skipping {symbol} - SIP already executed today ({today_ist})")
+                    skipped += 1
+                    continue
+            
             logger.info(f"Processing {symbol} - action: {action.upper()}")
             processed += 1
             
