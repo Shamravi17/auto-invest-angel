@@ -1669,8 +1669,8 @@ async def get_angel_one_logs(limit: int = 100):
 
 @app.get("/api/market-state-logs")
 async def get_market_state_logs(limit: int = 30):
-    """Get market state logs"""
-    logs = await db.market_state_logs.find({}, {"_id": 0}).sort("date", -1).limit(limit).to_list(limit)
+    """Get market state logs (latest first)"""
+    logs = await db.market_state_logs.find({}, {"_id": 0}).sort("timestamp", -1).limit(limit).to_list(limit)
     return logs
 
 # Available LLM Models
