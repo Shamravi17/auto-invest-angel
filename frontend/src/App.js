@@ -938,6 +938,87 @@ function App() {
                             onChange={(e) => setEditingItem({ ...editingItem, sip_frequency_days: parseInt(e.target.value) || 30 })}
                           />
                         </div>
+                        
+                        <Separator />
+                        
+                        {/* Re-entry Configuration */}
+                        <div className="space-y-4 p-4 rounded-lg bg-amber-50 border border-amber-200">
+                          <div className="flex items-center justify-between">
+                            <Label className="font-semibold text-amber-900">Re-entry Status</Label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={editingItem.awaiting_reentry || false}
+                                onChange={(e) => setEditingItem({ 
+                                  ...editingItem, 
+                                  awaiting_reentry: e.target.checked,
+                                  // Reset fields if unchecking
+                                  exit_price: e.target.checked ? editingItem.exit_price : null,
+                                  exit_amount: e.target.checked ? editingItem.exit_amount : null,
+                                  exit_quantity: e.target.checked ? editingItem.exit_quantity : null,
+                                  exit_date: e.target.checked ? editingItem.exit_date : null
+                                })}
+                                className="w-4 h-4 rounded border-amber-300"
+                              />
+                              <span className="text-sm text-amber-800">Awaiting Re-entry</span>
+                            </label>
+                          </div>
+                          
+                          {editingItem.awaiting_reentry && (
+                            <div className="space-y-3 pt-2">
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                  <Label className="text-xs text-amber-800">Exit Price (₹)</Label>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="75.00"
+                                    value={editingItem.exit_price || ''}
+                                    onChange={(e) => setEditingItem({ ...editingItem, exit_price: parseFloat(e.target.value) || 0 })}
+                                    className="border-amber-300"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-xs text-amber-800">Exit Quantity</Label>
+                                  <Input
+                                    type="number"
+                                    placeholder="100"
+                                    value={editingItem.exit_quantity || ''}
+                                    onChange={(e) => setEditingItem({ ...editingItem, exit_quantity: parseInt(e.target.value) || 0 })}
+                                    className="border-amber-300"
+                                  />
+                                </div>
+                              </div>
+                              
+                              <div className="space-y-1">
+                                <Label className="text-xs text-amber-800">Reserved Amount (₹)</Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="7500.00"
+                                  value={editingItem.exit_amount || ''}
+                                  onChange={(e) => setEditingItem({ ...editingItem, exit_amount: parseFloat(e.target.value) || 0 })}
+                                  className="border-amber-300"
+                                />
+                                <p className="text-xs text-amber-600">Amount reserved for re-entry (deducted from available balance)</p>
+                              </div>
+                              
+                              <div className="space-y-1">
+                                <Label className="text-xs text-amber-800">Exit Date</Label>
+                                <Input
+                                  type="date"
+                                  value={editingItem.exit_date || ''}
+                                  onChange={(e) => setEditingItem({ ...editingItem, exit_date: e.target.value })}
+                                  className="border-amber-300"
+                                />
+                              </div>
+                              
+                              <div className="p-3 bg-amber-100 rounded text-xs text-amber-800">
+                                <strong>Note:</strong> When awaiting re-entry, the bot will use the reserved amount (instead of SIP amount) to re-enter this position based on LLM analysis.
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
 
