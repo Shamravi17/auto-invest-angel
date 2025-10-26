@@ -1098,10 +1098,10 @@ function App() {
                   <Button
                     data-testid="run-now-btn"
                     onClick={triggerAnalysis}
-                    className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600"
+                    className="flex-1 bg-gradient-to-r from-orange-600 to-red-600"
                   >
                     <Play className="w-4 h-4 mr-2" />
-                    Run Analysis Now
+                    Force Run Bot Now
                   </Button>
                   <Button
                     data-testid="refresh-btn"
