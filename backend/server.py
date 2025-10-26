@@ -886,30 +886,25 @@ You are a stock market analyst. Analyze this stock for SIP (Systematic Investmen
 
 **CRITICAL: DYNAMIC AMOUNT LOGIC** (Apply this strictly):
 
-1. **Price SIGNIFICANTLY BELOW Average** (price 0.7x-0.9x of avg):
-   - Excellent buying opportunity
-   - Suggest 1.5x-2x base amount
-   - Example: Base ₹5000 → Suggest ₹7500-10000
+1. **Price SIGNIFICANTLY BELOW Average** (price <0.8x of avg):
+   - Great buying opportunity, accumulate aggressively
+   - Suggest higher amount (e.g., ₹8000-₹12000)
 
-2. **Price MODERATELY BELOW Average** (price 0.9x-0.95x of avg):
-   - Good accumulation zone
-   - Suggest 1.2x-1.4x base amount
-   - Example: Base ₹5000 → Suggest ₹6000-7000
+2. **Price BELOW Average** (price 0.8x-0.95x of avg):
+   - Good entry point, above-normal investment
+   - Suggest moderate-high amount (e.g., ₹6000-₹9000)
 
 3. **Price NEAR Average** (price 0.95x-1.05x of avg):
-   - Neutral zone
-   - Suggest 0.8x-1.2x base amount
-   - Example: Base ₹5000 → Suggest ₹4000-6000
+   - Fair valuation, normal investment
+   - Suggest standard amount (e.g., ₹4000-₹6000)
 
-4. **Price MODERATELY ABOVE Average** (price 1.05x-1.2x of avg):
+4. **Price ABOVE Average** (price 1.05x-1.2x of avg):
    - Reduce investment, manage risk
-   - Suggest 0.5x-0.8x base amount
-   - Example: Base ₹5000 → Suggest ₹2500-4000
+   - Suggest lower amount (e.g., ₹2500-₹4000)
 
 5. **Price SIGNIFICANTLY ABOVE Average** (price >1.2x of avg):
    - High risk zone, minimal investment
-   - Suggest 0.3x-0.5x base amount
-   - Example: Base ₹5000 → Suggest ₹1500-2500
+   - Suggest minimal amount (e.g., ₹1500-₹2500)
 
 **ADDITIONAL INDICATORS TO CONSIDER**:
 - RSI: Low (<30) = increase amount, High (>70) = decrease amount
