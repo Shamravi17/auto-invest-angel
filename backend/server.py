@@ -1016,7 +1016,7 @@ Provide your recommendation based on fundamentals and technical analysis.
             prompt = f"""
 You are a stock market analyst. Analyze this stock for {action.upper()} action.
 
-**STOCK**: {symbol}
+**STOCK**: {symbol}{isin_info}
 **CURRENT PRICE**: ₹{ltp:.2f}
 **PORTFOLIO CONTEXT**: Quantity: {quantity}, Avg Price: ₹{avg_price:.2f}
 
