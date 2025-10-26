@@ -1272,7 +1272,10 @@ async def run_trading_bot():
             
             # Execute trades if auto_execute is enabled
             order_result = None
+            logger.info(f"Auto execute check: config.auto_execute_trades={config.auto_execute_trades}, decision={llm_result['decision']}")
+            
             if config.auto_execute_trades and llm_result['decision'] in ["EXECUTE", "SELL", "EXIT_AND_REENTER", "EXIT"]:
+                logger.info(f"✓ Proceeding with order execution for {symbol}")
                 try:
                     # Determine transaction type and quantity
                     if llm_result['decision'] == "EXIT" and action == "sip":
