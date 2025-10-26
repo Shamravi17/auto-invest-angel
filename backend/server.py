@@ -853,7 +853,7 @@ REASONING: <2-3 line explanation>
                 prompt = f"""
 You are a stock market analyst. Analyze this stock for SIP (Systematic Investment Plan) decision RIGHT NOW.
 
-**STOCK**: {symbol}
+**STOCK**: {symbol}{isin_info}
 **CURRENT PRICE**: ₹{current_price:.2f}
 
 **YOUR CURRENT POSITION**:
