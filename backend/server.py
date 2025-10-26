@@ -1160,15 +1160,25 @@ async def is_market_open() -> bool:
                     # Check if any market is open
                     if isinstance(data, dict) and 'marketState' in data:
                         for market in data['marketState']:
-                            if market.get('marketStatus') == 'Open':
-                                logger.info(f"Market is OPEN: {market.get('market', 'Unknown')}")
+                            market_status = market.get('marketStatus', '').lower()
+                            market_name = market.get('market', 'Unknown')
+                            logger.info(f"Market '{market_name}' status: {market_status}")
+                            
+                            # Market is open if status is "open" or "normal"
+                            if market_status in ['open', 'normal']:
+                                logger.info(f"✓ Market is OPEN: {market_name}")
                                 return True
-                    logger.info("Market is CLOSED")
+                    
+                    logger.info("❌ All markets are CLOSED")
+                    return False
+                else:
+                    logger.error(f"NSE API returned status {response.status}")
                     return False
     except Exception as e:
-        logger.warning(f"Could not check market status: {str(e)}")
-        # Default to True if check fails (don't block trading)
-        return True
+        logger.error(f"❌ Failed to check market status: {str(e)}")
+        # For automatic runs, default to False (don't trade if we can't confirm market is open)
+        logger.error("⚠️ Defaulting to CLOSED for safety")
+        return False
     return False
 
 # ===== BOT SCHEDULING =====
