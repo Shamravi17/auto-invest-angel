@@ -1325,8 +1325,25 @@ async def run_trading_bot(manual_trigger: bool = False):
             logger.error(f"Failed to fetch portfolio: {str(e)}")
             portfolio = {"holdings": [], "available_cash": 0}
         
+        # Calculate reserved balance for awaiting re-entry SIPs
+        reserved_for_reentry = 0
+        for item in watchlist:
+            if item.get('awaiting_reentry', False) and item.get('action') == 'sip':
+                exit_amount = item.get('exit_amount', 0)
+                reserved_for_reentry += exit_amount
+                logger.info(f"  → Reserved ₹{exit_amount:.2f} for re-entry: {item.get('symbol')}")
+        
+        # Calculate actual available balance after reservations
+        angel_one_balance = portfolio.get('available_cash', 0)
+        available_balance = angel_one_balance - reserved_for_reentry
+        
+        if reserved_for_reentry > 0:
+            logger.info(f"💰 Balance Calculation:")
+            logger.info(f"   Angel One Balance: ₹{angel_one_balance:.2f}")
+            logger.info(f"   Reserved for Re-entry: ₹{reserved_for_reentry:.2f}")
+            logger.info(f"   Available for Trading: ₹{available_balance:.2f}")
+        
         # Check minimum balance requirement
-        available_balance = portfolio.get('available_cash', 0)
         MIN_BALANCE = 2000
         
         if available_balance < MIN_BALANCE:
