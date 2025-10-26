@@ -1214,15 +1214,36 @@ async def run_trading_bot(manual_trigger: bool = False):
     """
     logger.info(f"Trading bot started (manual_trigger={manual_trigger})")
     
+    today_ist = datetime.now(IST).date().isoformat()
+    
     try:
         # Check market status (skip for manual triggers)
         if not manual_trigger:
             market_open = await is_market_open()
+            
+            # Log market state
+            market_log = MarketStateLog(
+                date=today_ist,
+                market_status="Open" if market_open else "Closed",
+                bot_executed=market_open,
+                reason=None if market_open else "Market closed"
+            )
+            await db.market_state_logs.insert_one(market_log.model_dump())
+            
             if not market_open:
                 logger.info("⏸️ Market is closed. Bot execution skipped.")
                 return
         else:
             logger.info("🔧 Manual trigger - bypassing market status check")
+            
+            # Log manual execution
+            market_log = MarketStateLog(
+                date=today_ist,
+                market_status="Manual Override",
+                bot_executed=True,
+                reason="Force run by user"
+            )
+            await db.market_state_logs.insert_one(market_log.model_dump())
         
         # Get config
         config_doc = await db.bot_config.find_one({"_id": "main"})
