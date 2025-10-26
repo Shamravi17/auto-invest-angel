@@ -127,6 +127,13 @@ class WatchlistItem(BaseModel):
     avg_price: Optional[float] = None
     notes: Optional[str] = ""
     added_at: str = Field(default_factory=get_ist_timestamp)
+    
+    # SIP Exit and Re-entry fields
+    awaiting_reentry: bool = False  # Flag indicating position was exited, waiting to re-enter
+    exit_price: Optional[float] = None  # Price at which position was exited
+    exit_amount: Optional[float] = None  # Total amount from exit (reserved for re-entry)
+    exit_date: Optional[str] = None  # Date when position was exited
+    exit_quantity: Optional[int] = None  # Quantity that was sold during exit
 
 class ExecutedOrder(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
