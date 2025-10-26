@@ -757,14 +757,115 @@ async def get_llm_decision(symbol: str, action: str, market_data: Dict, config: 
             avg_price = item.get('avg_price', 0)
             current_price = market_data.get('ltp', 0)
             
+            # Check if this is a re-entry scenario
+            awaiting_reentry = item.get('awaiting_reentry', False)
+            exit_price = item.get('exit_price', 0)
+            exit_amount = item.get('exit_amount', 0)
+            exit_quantity = item.get('exit_quantity', 0)
+            exit_date = item.get('exit_date', '')
+            
             # Calculate current position value and P&L
             investment = quantity * avg_price if quantity and avg_price else 0
             current_value = quantity * current_price if quantity and current_price else 0
             pnl = current_value - investment if investment > 0 else 0
             pnl_pct = (pnl / investment * 100) if investment > 0 else 0
             
-            # Get available balance from portfolio
+            # Get available balance from portfolio (already adjusted for reserved amounts)
             available_balance = portfolio.get('available_cash', 0) if portfolio else 0
+            
+            # SPECIAL CASE: Re-entry Decision
+            if awaiting_reentry and exit_price > 0 and exit_amount > 0:
+                # This position was exited, now check if it's time to re-enter
+                price_drop_pct = ((exit_price - current_price) / exit_price * 100) if exit_price > 0 else 0
+                
+                reentry_prompt = f"""
+You are a stock market analyst. This SIP position was EXITED for profit booking. Now decide if it's time to RE-ENTER.
+
+**STOCK**: {symbol}{isin_info}
+**CURRENT PRICE**: ₹{current_price:.2f}
+
+**EXIT DETAILS** (When position was sold):
+- Exit Price: ₹{exit_price:.2f}
+- Exit Quantity: {exit_quantity} units
+- Exit Amount Received: ₹{exit_amount:.2f}
+- Exit Date: {exit_date}
+- Price Drop Since Exit: {price_drop_pct:.1f}% (Current ₹{current_price:.2f} vs Exit ₹{exit_price:.2f})
+
+**RESERVED AMOUNT FOR RE-ENTRY**: ₹{exit_amount:.2f}
+
+**USER'S ANALYSIS PARAMETERS**:
+{config.analysis_parameters}
+
+**YOUR TASK**: Decide if NOW is a good time to RE-ENTER this position.
+
+**RE-ENTRY CRITERIA**:
+1. Price has dropped sufficiently from exit price (ideally 5-15% correction)
+2. Technical indicators show support/reversal (RSI oversold, volume pickup)
+3. Fundamentals remain strong (no deterioration in business)
+4. Market sentiment improving or stabilizing
+5. Good risk-reward ratio for re-entry
+
+**IMPORTANT**:
+- You have ₹{exit_amount:.2f} reserved specifically for this re-entry
+- Don't wait too long - if price keeps rising, re-entry becomes expensive
+- Be decisive but ensure there's a reasonable margin of safety
+- Consider if stock has found support at current levels
+
+**RESPONSE FORMAT** (must follow exactly):
+REENTRY_ACTION: EXECUTE or WAIT
+AMOUNT: {exit_amount:.2f}
+REASONING: <2-3 line explanation covering price levels, indicators, and timing>
+
+**EXAMPLES**:
+- "REENTRY_ACTION: EXECUTE\\nAMOUNT: {exit_amount:.2f}\\nREASONING: Price corrected 12% from exit (₹{exit_price:.2f} to ₹{current_price:.2f}). RSI at 32 shows oversold. Strong support at current level. Good re-entry point."
+- "REENTRY_ACTION: WAIT\\nAMOUNT: 0\\nREASONING: Only 3% correction from exit price. RSI still at 68. Wait for deeper pullback to ₹{exit_price * 0.9:.2f} or RSI below 40 for better entry."
+"""
+                
+                try:
+                    session_id = f"{symbol}_reentry_{uuid.uuid4().hex[:8]}"
+                    chat = LlmChat(
+                        api_key=api_key,
+                        session_id=session_id,
+                        system_message="You are an expert at timing re-entry points after profit booking."
+                    )
+                    chat.with_model("openai", config.llm_model)
+                    response = await chat.send_message(UserMessage(text=reentry_prompt))
+                    
+                    # Parse re-entry response
+                    decision = "SKIP"
+                    reasoning = "No clear signal"
+                    
+                    for line in response.split('\n'):
+                        if 'REENTRY_ACTION:' in line:
+                            action_value = line.split(':')[1].strip().upper()
+                            decision = "EXECUTE" if action_value == "EXECUTE" else "SKIP"
+                        elif 'REASONING:' in line:
+                            reasoning = line.split(':', 1)[1].strip()
+                    
+                    # Log the re-entry check
+                    await db.llm_prompt_logs.insert_one({
+                        "symbol": symbol,
+                        "action_type": "sip_reentry",
+                        "full_prompt": reentry_prompt,
+                        "llm_response": response,
+                        "decision_made": decision,
+                        "model_used": config.llm_model,
+                        "timestamp": get_ist_timestamp()
+                    })
+                    
+                    return {
+                        "decision": decision,
+                        "sip_amount": exit_amount if decision == "EXECUTE" else 0,
+                        "reasoning": reasoning
+                    }
+                    
+                except Exception as reentry_error:
+                    logger.error(f"Re-entry LLM decision error: {str(reentry_error)}")
+                    return {
+                        "decision": "SKIP",
+                        "sip_amount": 0,
+                        "reasoning": f"Error in re-entry analysis: {str(reentry_error)}"
+                    }
             
             # STEP 1: Check if should EXIT (profit booking) - Only if position exists
             should_exit = False
