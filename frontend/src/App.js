@@ -791,7 +791,7 @@ function App() {
                                 <TrendingUp className="w-5 h-5 text-white" />
                               </div>
                               <div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
                                   <p className="font-semibold text-slate-800 text-lg">{item.symbol}</p>
                                   <Badge 
                                     variant={item.action === 'sip' ? 'default' : item.action === 'buy' ? 'secondary' : item.action === 'sell' ? 'destructive' : 'outline'}
@@ -799,8 +799,18 @@ function App() {
                                     {item.action.toUpperCase()}
                                   </Badge>
                                   {holding && <Badge className="bg-green-100 text-green-800">In Portfolio</Badge>}
+                                  {item.awaiting_reentry && (
+                                    <Badge className="bg-amber-100 text-amber-800 border-amber-200">
+                                      ⏳ Awaiting Re-entry
+                                    </Badge>
+                                  )}
                                 </div>
                                 <p className="text-sm text-slate-500">{item.exchange} • Token: {item.symbol_token}</p>
+                                {item.awaiting_reentry && item.exit_amount && (
+                                  <p className="text-xs text-amber-600 mt-1">
+                                    Reserved: ₹{item.exit_amount.toFixed(2)} (Exit @ ₹{item.exit_price?.toFixed(2) || '0.00'} on {item.exit_date})
+                                  </p>
+                                )}
                               </div>
                             </div>
                             <div className="flex gap-2">
