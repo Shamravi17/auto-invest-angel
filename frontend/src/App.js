@@ -862,12 +862,7 @@ function App() {
                             </div>
                           )}
 
-                          {/* Action Config Display */}
-                          {item.action === 'sip' && item.sip_amount && (
-                            <div className="p-3 rounded bg-green-50 border border-green-200 text-sm">
-                              <p className="font-semibold text-green-800">SIP: Rs.{item.sip_amount} every {item.sip_frequency_days} days</p>
-                            </div>
-                          )}
+                          {/* Action Config Display - Removed SIP amount/frequency as they're not used */}
                           {item.action === 'buy' && item.quantity && (
                             <div className="p-3 rounded bg-blue-50 border border-blue-200 text-sm">
                               <p className="font-semibold text-blue-800">Buy: {item.quantity} shares</p>
