@@ -197,6 +197,68 @@ backend:
           
           Conclusion: Market check works correctly - automatic runs abort if closed, manual runs bypass
   
+  - task: "Fix LLM calls not being made during manual bot runs"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "critical"
+    needs_retesting: false
+    status_history:
+      - working: false
+        agent: "user"
+        comment: |
+          User reported: When running bot manually, LLM calls are not being made
+          Error in logs: "unsupported format string passed to NoneType.__format__"
+      - working: true
+        agent: "main"
+        comment: |
+          ✅ FIXED - Root cause: NoneType formatting error in prompts
+          
+          Problem: When item.get('avg_price', 0) or market_data.get('ltp', 0) returned None,
+          the f-string formatting with :.2f would fail
+          
+          Solution (lines 943-1012):
+          - Added explicit None checks for all numeric fields in BUY, SELL, and other action prompts
+          - Extract values first: quantity = item.get('quantity', 0) or 0
+          - Extract values first: avg_price = item.get('avg_price', 0) or 0
+          - Extract values first: ltp = market_data.get('ltp', 0) or 0
+          - Then use these validated variables in f-strings
+          
+          Verification:
+          - ✅ Tested with manual bot run on test item
+          - ✅ LLM call successful - logs show: "LiteLLM completion() model= gpt-4o; provider = openai"
+          - ✅ LLM response received and parsed correctly
+          - ✅ Analysis log created with LLM decision
+          - ✅ No more NoneType formatting errors
+  
+  - task: "Market Days tab should show latest first"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: false
+        agent: "user"
+        comment: |
+          User requested: Market Days tab should display latest entries first (reverse chronological)
+      - working: true
+        agent: "main"
+        comment: |
+          ✅ FIXED - Changed sorting order in API endpoint
+          
+          Solution (line 1673):
+          - Changed from: .sort("date", -1)
+          - Changed to: .sort("timestamp", -1)
+          - This sorts by timestamp field (which includes time) instead of date field
+          - -1 means descending order (latest first)
+          
+          Verification:
+          - ✅ Market Days tab now shows most recent entries at the top
+          - ✅ Time stamps show 5:16 pm, 4:39 pm, 4:38 pm, 4:37 pm in correct order
+  
   - task: "Implement IST time format everywhere"
     implemented: true
     working: true
