@@ -1219,10 +1219,19 @@ async def schedule_bot(config: BotConfig):
 # ===== TRADING BOT =====
 async def run_trading_bot(manual_trigger: bool = False):
     """
-    Run trading bot
-    manual_trigger: If True, bypasses market status check (for "Force Run" button)
+    Run trading bot with LLM analysis and optional order execution
+    
+    Parameters:
+    - manual_trigger (bool): If True, bypasses market status check ONLY
+    
+    Important behavior:
+    1. manual_trigger=True → Bypasses MARKET STATUS check, but still respects auto_execute_trades flag
+    2. auto_execute_trades=False → Skips ORDER EXECUTION for both manual and automatic runs
+    3. Bot ALWAYS performs LLM analysis regardless of these flags
     """
     logger.info(f"🤖 Trading bot started (manual_trigger={manual_trigger})")
+    logger.info(f"   → manual_trigger controls: Market status check bypass")
+    logger.info(f"   → auto_execute_trades controls: Whether to place actual orders")
     
     today_ist = datetime.now(IST).date().isoformat()
     
