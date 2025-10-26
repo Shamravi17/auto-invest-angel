@@ -1368,6 +1368,7 @@ async def run_trading_bot(manual_trigger: bool = False):
                     "volume": 0,
                     "change_pct": 0
                 }
+                isin = holding.get('isin')  # Get ISIN from Angel One
             else:
                 # Use item's avg_price as placeholder if not in portfolio
                 market_data = {
@@ -1375,9 +1376,10 @@ async def run_trading_bot(manual_trigger: bool = False):
                     "volume": 0,
                     "change_pct": 0
                 }
+                isin = None
             
-            # Get LLM decision
-            llm_result = await get_llm_decision(symbol, action, market_data, config, item, portfolio, action_counts.get('sip', 0))
+            # Get LLM decision with ISIN
+            llm_result = await get_llm_decision(symbol, action, market_data, config, item, portfolio, action_counts.get('sip', 0), isin)
             
             # Log analysis
             analysis_log = AnalysisLog(
