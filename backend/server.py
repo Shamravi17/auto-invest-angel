@@ -1486,19 +1486,26 @@ async def run_trading_bot(manual_trigger: bool = False):
                             )
                             logger.info(f"Updated last_sip_date for {symbol} to {today_ist}")
                         
-                        # Update analysis log
+                        # Update analysis log with execution results
                         analysis_log.executed = order_result.get('success', False)
                         analysis_log.order_id = order_result.get('order_id')
-                        if not order_result.get('success'):
+                        
+                        if order_result.get('success'):
+                            analysis_log.execution_status = "EXECUTED"
+                        else:
+                            analysis_log.execution_status = "FAILED"
                             analysis_log.error = order_result.get('message', 'Order failed')
                         
                         logger.info(f"Order {'SUCCESS' if order_result.get('success') else 'FAILED'}: {symbol} - {order_result.get('message')}")
                     else:
                         logger.warning(f"Invalid order parameters: {symbol} - transaction_type={transaction_type}, quantity={quantity}")
+                        analysis_log.execution_status = "FAILED"
+                        analysis_log.error = f"Invalid order parameters: transaction_type={transaction_type}, quantity={quantity}"
                         
                 except Exception as order_error:
                     error_msg = str(order_error)
                     logger.error(f"Order execution failed for {symbol}: {error_msg}")
+                    analysis_log.execution_status = "FAILED"
                     analysis_log.error = error_msg
             
             # Save analysis log
