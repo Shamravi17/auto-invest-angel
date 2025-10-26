@@ -888,13 +888,13 @@ function App() {
 
             {/* Edit Strategy Dialog */}
             <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-              <DialogContent className="max-w-2xl">
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Configure Strategy: {editingItem?.symbol}</DialogTitle>
                   <DialogDescription>Set action and parameters</DialogDescription>
                 </DialogHeader>
                 {editingItem && (
-                  <div className="space-y-6 pt-4">
+                  <div className="space-y-6 pt-4 pb-4">
                     {/* Action Selection */}
                     <div className="space-y-2">
                       <Label className="font-semibold">Action</Label>
