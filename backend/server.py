@@ -1394,6 +1394,15 @@ async def run_trading_bot(manual_trigger: bool = False):
                         )
                         await db.executed_orders.insert_one(executed_order.model_dump())
                         
+                        # Update last_sip_date for SIP orders
+                        if action == 'sip' and order_result.get('success'):
+                            today_ist = datetime.now(IST).date().isoformat()
+                            await db.watchlist.update_one(
+                                {"id": item['id']},
+                                {"$set": {"last_sip_date": today_ist}}
+                            )
+                            logger.info(f"Updated last_sip_date for {symbol} to {today_ist}")
+                        
                         # Update analysis log
                         analysis_log.executed = order_result.get('success', False)
                         analysis_log.order_id = order_result.get('order_id')
