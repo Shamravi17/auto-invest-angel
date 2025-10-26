@@ -869,7 +869,6 @@ You are a stock market analyst. Analyze this stock for SIP (Systematic Investmen
 - P&L: ₹{pnl:.2f} ({pnl_pct:+.2f}%)
 
 **AVAILABLE BALANCE**: ₹{available_balance:.2f}
-**BASE SIP AMOUNT**: ₹{sip_amount:.2f} (user's reference amount)
 **TOTAL SIP STOCKS IN WATCHLIST**: {total_sip_count} stocks (including this one)
 **BALANCE PER SIP STOCK**: ₹{(available_balance / total_sip_count) if total_sip_count > 0 else 0:.2f} (if divided equally)
 
