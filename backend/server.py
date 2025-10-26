@@ -161,6 +161,7 @@ class AnalysisLog(BaseModel):
     executed: bool = False
     order_id: Optional[str] = None
     error: Optional[str] = None
+    execution_status: Optional[str] = None  # NEW: "EXECUTED", "SKIPPED_AUTO_EXECUTE_DISABLED", "SKIPPED_LLM_DECISION", "FAILED"
 
 class TelegramNotification(BaseModel):
     message: str
