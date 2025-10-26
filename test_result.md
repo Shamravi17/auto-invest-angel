@@ -103,9 +103,11 @@
 #====================================================================================================
 
 user_problem_statement: |
-  User reported the following critical issues:
-  1. auto_execute_trades flag not being respected - bot executes orders even when flag is False
-  2. Automatic bot runs should check market status FIRST and abort if market is closed (not just skip)
+  User reported the following issues:
+  1. ✅ FIXED: auto_execute_trades flag not being respected - bot executes orders even when flag is False
+  2. ✅ FIXED: Automatic bot runs should check market status FIRST and abort if market is closed
+  3. ✅ FIXED: LLM calls not being made during manual bot runs (NoneType formatting error)
+  4. ✅ FIXED: Market Days tab should show latest entries first
   
   Previous resolved issues:
   - Portfolio analysis and LLM logging (resolved)
