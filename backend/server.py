@@ -1383,7 +1383,8 @@ async def run_trading_bot(manual_trigger: bool = False):
                 llm_decision=llm_result['decision'],
                 market_data=market_data,
                 executed=False,  # Will update to True if order placed
-                order_id=None
+                order_id=None,
+                execution_status=None  # Will be set based on execution flow
             )
             
             # Execute trades based on auto_execute_trades flag
@@ -1401,9 +1402,11 @@ async def run_trading_bot(manual_trigger: bool = False):
                 logger.warning(f"   Reason: auto_execute_trades is DISABLED")
                 logger.warning(f"   Trigger type: {'Manual' if manual_trigger else 'Automatic'}")
                 logger.warning(f"   LLM analysis completed, but NO ORDER will be placed to Angel One")
+                analysis_log.execution_status = "SKIPPED_AUTO_EXECUTE_DISABLED"
             elif llm_result['decision'] not in ["EXECUTE", "SELL", "EXIT_AND_REENTER", "EXIT"]:
                 logger.info(f"⏭️ SKIPPING order execution for {symbol}")
                 logger.info(f"   Reason: LLM decision is '{llm_result['decision']}' (not an execution decision)")
+                analysis_log.execution_status = "SKIPPED_LLM_DECISION"
             elif config.auto_execute_trades and llm_result['decision'] in ["EXECUTE", "SELL", "EXIT_AND_REENTER", "EXIT"]:
                 logger.info(f"✅ PROCEEDING with order execution for {symbol}")
                 logger.info(f"   auto_execute_trades is ENABLED and LLM decided to execute")
