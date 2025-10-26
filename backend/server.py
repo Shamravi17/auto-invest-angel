@@ -753,7 +753,6 @@ async def get_llm_decision(symbol: str, action: str, market_data: Dict, config: 
         
         # Build prompt based on action
         if action == "sip":
-            sip_amount = item.get('sip_amount') or 0
             quantity = item.get('quantity', 0)
             avg_price = item.get('avg_price', 0)
             current_price = market_data.get('ltp', 0)
