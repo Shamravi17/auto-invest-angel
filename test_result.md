@@ -113,39 +113,57 @@ user_problem_statement: |
   - IST timestamp format (resolved)
 
 backend:
-  - task: "Move Angel One credentials to database with encryption"
+  - task: "Fix auto_execute_trades flag to prevent order execution when disabled"
     implemented: true
-    working: true
+    working: "NA"
     file: "/app/backend/server.py"
     stuck_count: 0
-    priority: "high"
-    needs_retesting: false
+    priority: "critical"
+    needs_retesting: true
     status_history:
-      - working: true
+      - working: false
+        agent: "user"
+        comment: |
+          User reported: Bot places orders even when auto_execute_trades is set to False
+          This happens for both manual and automatic triggers
+      - working: "NA"
         agent: "main"
         comment: |
-          - Added cryptography library for encryption/decryption
-          - Created Credentials model and encrypted storage in MongoDB
-          - Added /api/credentials GET and PUT endpoints
-          - Credentials are encrypted using Fernet before storing
-          - Updated Angel One authentication to fetch from DB or fallback to .env
-          - ENCRYPTION_KEY stored in .env (not committed to Git)
+          Fixed implementation:
+          - Added detailed logging before order execution check (lines 1368-1376)
+          - Log shows: auto_execute_trades flag value, LLM decision, manual trigger status
+          - Added explicit SKIP logging when flag is False
+          - Added explicit SKIP logging when LLM decision doesn't warrant execution
+          - The if condition already checks config.auto_execute_trades correctly (line 1377)
+          - Need to test both scenarios: manual trigger and automatic trigger
   
-  - task: "Fix portfolio analysis endpoint"
+  - task: "Market status check should abort automatic runs FIRST if market closed"
     implemented: true
-    working: true
+    working: "NA"
     file: "/app/backend/server.py"
     stuck_count: 0
-    priority: "high"
-    needs_retesting: false
+    priority: "critical"
+    needs_retesting: true
     status_history:
-      - working: true
+      - working: false
+        agent: "user"
+        comment: |
+          User requested: Automatic bot should check market state FIRST
+          If market is closed, abort the entire bot execution (not just skip)
+          Only continue if market status is "open" or other active status
+      - working: "NA"
         agent: "main"
         comment: |
-          - LLM response from emergentintegrations LlmChat.send_message returns string directly
-          - Added LLM prompt logging for portfolio analysis
-          - Analysis now properly saves and displays LLM insights
-          - Tested successfully with real portfolio data
+          Fixed implementation:
+          - Moved market status check to STEP 1 (before config loading) for automatic runs (lines 1217-1236)
+          - Returns immediately if market is closed (line 1232)
+          - Added better logging: "Market is CLOSED. Automatic bot execution aborted."
+          - Manual triggers still bypass this check correctly (lines 1237-1248)
+          - Fixed is_market_open() function:
+            * Added check for both "open" and "normal" status (line 1167)
+            * Changed default behavior on API failure: now returns False instead of True (line 1178)
+            * Added detailed logging for each market status check
+            * This prevents bot from running when market status API is down
   
   - task: "Implement IST time format everywhere"
     implemented: true
