@@ -957,7 +957,7 @@ REASONING: <Explain price level, indicators, and why this specific amount>
             prompt = f"""
 You are a stock market analyst. Analyze whether to sell this holding.
 
-**STOCK**: {symbol}
+**STOCK**: {symbol}{isin_info}
 **QUANTITY**: {quantity}
 **AVG PRICE**: ₹{avg_price:.2f}
 **CURRENT PRICE**: ₹{ltp:.2f}
@@ -988,7 +988,7 @@ REASONING: <brief 2-3 line explanation>
             prompt = f"""
 You are a stock market analyst. Analyze this stock for BUY action.
 
-**STOCK**: {symbol}
+**STOCK**: {symbol}{isin_info}
 **CURRENT PRICE**: ₹{ltp:.2f}
 
 **PORTFOLIO CONTEXT**:
