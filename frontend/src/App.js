@@ -1602,6 +1602,48 @@ function App() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Market Days Tab */}
+          <TabsContent value="market-logs">
+            <Card className="bg-white/90 backdrop-blur border-slate-200">
+              <CardHeader>
+                <CardTitle>Market Days Log</CardTitle>
+                <CardDescription>Days when bot checked market status and executed</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {marketStateLogs.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Calendar className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                    <p className="text-slate-500 text-lg mb-2">No market logs yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {marketStateLogs.map((log) => (
+                      <div key={log.id} className={`p-4 rounded-lg border ${log.bot_executed ? 'bg-green-50 border-green-200' : 'bg-slate-50 border-slate-200'}`}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <span className="font-semibold">{log.date}</span>
+                            <Badge className={log.market_status === 'Open' ? 'bg-green-100 text-green-800' : log.market_status === 'Manual Override' ? 'bg-orange-100 text-orange-800' : 'bg-red-100 text-red-800'}>
+                              {log.market_status}
+                            </Badge>
+                            {log.bot_executed && (
+                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                ✓ Bot Executed
+                              </Badge>
+                            )}
+                          </div>
+                          <span className="text-xs text-slate-500">{new Date(log.timestamp).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })} IST</span>
+                        </div>
+                        {log.reason && (
+                          <p className="text-xs text-slate-600 mt-2">{log.reason}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </main>
     </div>
