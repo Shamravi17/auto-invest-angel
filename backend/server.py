@@ -1440,9 +1440,10 @@ async def get_logs(limit: int = 50):
     return logs
 
 @app.post("/api/run-bot")
-async def trigger_bot(background_tasks: BackgroundTasks):
-    background_tasks.add_task(run_trading_bot)
-    return {"success": True, "message": "Bot triggered"}
+async def trigger_bot(background_tasks: BackgroundTasks, manual: bool = False):
+    """Trigger bot execution. If manual=True, bypasses market status check"""
+    background_tasks.add_task(run_trading_bot, manual)
+    return {"success": True, "message": "Bot triggered", "manual": manual}
 
 @app.post("/api/send-notification")
 async def send_test_notification(notification: TelegramNotification):
