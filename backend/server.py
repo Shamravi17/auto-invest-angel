@@ -1458,12 +1458,23 @@ async def run_trading_bot(manual_trigger: bool = False):
                     elif llm_result['decision'] == "EXECUTE" and action == "sip":
                         # SIP execution - buy
                         transaction_type = "BUY"
+                        
+                        # Check if this is a re-entry after exit
+                        is_reentry = item.get('awaiting_reentry', False)
+                        if is_reentry:
+                            # Use exit amount for re-entry
+                            sip_amount = item.get('exit_amount', llm_result['sip_amount'])
+                            order_type_desc = "SIP_REENTRY"
+                            logger.info(f"Executing SIP RE-ENTRY: Using exit amount ₹{sip_amount:.2f} for {symbol}")
+                        else:
+                            # Regular SIP
+                            sip_amount = llm_result['sip_amount']
+                            order_type_desc = "SIP"
+                            logger.info(f"Executing SIP: Buy {symbol} for ₹{sip_amount:.2f}")
+                        
                         # Calculate quantity from amount
-                        sip_amount = llm_result['sip_amount']
                         current_price = market_data.get('ltp', 0)
                         quantity = int(sip_amount / current_price) if current_price > 0 else 0
-                        order_type_desc = "SIP"
-                        logger.info(f"Executing SIP: Buy {quantity} units of {symbol} for ₹{sip_amount:.2f}")
                     
                     elif llm_result['decision'] == "EXECUTE" and action == "buy":
                         # Buy execution
