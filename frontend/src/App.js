@@ -919,28 +919,6 @@ function App() {
                     {/* SIP Configuration */}
                     {editingItem.action === 'sip' && (
                       <div className="space-y-4">
-                        <div className="space-y-2">
-                          <Label>SIP Amount (Rs.)</Label>
-                          <Input
-                            type="number"
-                            placeholder="5000"
-                            value={editingItem.sip_amount || ''}
-                            onChange={(e) => setEditingItem({ ...editingItem, sip_amount: parseFloat(e.target.value) || 0 })}
-                          />
-                          <p className="text-xs text-slate-500">LLM will adjust this based on market conditions</p>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Frequency (days)</Label>
-                          <Input
-                            type="number"
-                            placeholder="30"
-                            value={editingItem.sip_frequency_days || 30}
-                            onChange={(e) => setEditingItem({ ...editingItem, sip_frequency_days: parseInt(e.target.value) || 30 })}
-                          />
-                        </div>
-                        
-                        <Separator />
-                        
                         {/* Re-entry Configuration */}
                         <div className="space-y-4 p-4 rounded-lg bg-amber-50 border border-amber-200">
                           <div className="flex items-center justify-between">
@@ -1014,10 +992,14 @@ function App() {
                               </div>
                               
                               <div className="p-3 bg-amber-100 rounded text-xs text-amber-800">
-                                <strong>Note:</strong> When awaiting re-entry, the bot will use the reserved amount (instead of SIP amount) to re-enter this position based on LLM analysis.
+                                <strong>Note:</strong> When awaiting re-entry, the bot will use the reserved amount (instead of regular SIP amount) to re-enter this position based on LLM analysis.
                               </div>
                             </div>
                           )}
+                        </div>
+                        
+                        <div className="p-3 bg-blue-50 rounded text-xs text-blue-800">
+                          <strong>SIP Strategy:</strong> LLM analyzes market conditions and dynamically determines investment amounts based on technical indicators, fundamentals, and price levels.
                         </div>
                       </div>
                     )}
