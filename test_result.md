@@ -311,22 +311,27 @@ test_plan:
 agent_communication:
   - agent: "main"
     message: |
-      Implemented fixes for two critical issues:
+      ✅ BOTH CRITICAL ISSUES FIXED AND VERIFIED
+      ==========================================
       
-      1. ✅ auto_execute_trades flag: Added comprehensive logging to trace execution
-         - Logs flag value, LLM decision, manual trigger status
-         - Explicitly logs when orders are SKIPPED due to flag being False
-         - The conditional check was already correct, but now we have visibility
+      1. auto_execute_trades flag behavior:
+         - Flag now correctly controls order placement for BOTH manual and automatic triggers
+         - Manual trigger ONLY bypasses market status check, NOT the auto_execute_trades flag
+         - Comprehensive logging added for debugging
+         - VERIFIED with actual test runs
       
-      2. ✅ Market status check for automatic runs:
-         - Moved market check to VERY FIRST step (before config loading)
-         - Returns immediately if market closed (aborts entire bot execution)
+      2. Market status check for automatic runs:
+         - Market check happens FIRST (before config loading)
+         - Bot immediately aborts if market is closed (automatic runs only)
+         - Manual triggers correctly bypass market check
          - Fixed is_market_open() to check for "open" OR "normal" status
-         - Changed default on API failure: now returns False (safe default)
-         - Manual triggers correctly bypass this check
+         - Changed fail-safe behavior: defaults to False (closed) if API fails
+         - VERIFIED with actual test runs
       
-      Ready for backend testing to verify:
-      - Scenario 1: auto_execute_trades=False, manual trigger → Should analyze but NOT place orders
-      - Scenario 2: auto_execute_trades=False, automatic trigger → Should analyze but NOT place orders
-      - Scenario 3: Automatic trigger when market closed → Should abort immediately
-      - Scenario 4: Manual trigger when market closed → Should bypass check and proceed
+      Key Behavior Summary:
+      - manual_trigger flag: Controls whether to bypass MARKET STATUS check only
+      - auto_execute_trades flag: Controls whether to PLACE ORDERS (applies to both manual and automatic)
+      - Bot ALWAYS performs LLM analysis regardless of these flags
+      
+      All logs show clear, detailed messages for each decision point.
+      Ready for production use.
