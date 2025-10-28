@@ -924,6 +924,26 @@ async def get_llm_decision(symbol: str, action: str, market_data: Dict, config: 
             if index_parts:
                 index_info = "\n\n**INDEX VALUATION** (Underlying benchmark):\n" + "\n".join([f"- {part}" for part in index_parts])
         
+        # Build NSE Index Data section (from proxy mapping)
+        nse_info = ""
+        if nse_index_data:
+            nse_parts = []
+            proxy_name = item.get('proxy_index', 'Proxy Index')
+            if nse_index_data.get('pe'):
+                nse_parts.append(f"P/E Ratio: {nse_index_data['pe']:.2f}")
+            if nse_index_data.get('pb'):
+                nse_parts.append(f"P/B Ratio: {nse_index_data['pb']:.2f}")
+            if nse_index_data.get('divYield'):
+                nse_parts.append(f"Dividend Yield: {nse_index_data['divYield']:.2f}%")
+            if nse_index_data.get('last'):
+                nse_parts.append(f"Index Level: {nse_index_data['last']:.2f}")
+            if nse_index_data.get('percentChange'):
+                change_dir = "📈" if nse_index_data['percentChange'] > 0 else "📉"
+                nse_parts.append(f"Intraday Change: {change_dir} {nse_index_data['percentChange']:+.2f}%")
+            
+            if nse_parts:
+                nse_info = f"\n\n**NSE INDEX DATA** ({proxy_name} - Live):\n" + "\n".join([f"- {part}" for part in nse_parts])
+        
         # Build Market Trend section
         trend_info = ""
         if market_trend:
