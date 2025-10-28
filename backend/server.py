@@ -1041,11 +1041,12 @@ You are a stock market analyst. Analyze this stock for SIP (Systematic Investmen
 **AVAILABLE BALANCE**: ₹{available_balance:.2f}
 **TOTAL SIP STOCKS IN WATCHLIST**: {total_sip_count} stocks (including this one)
 **BALANCE PER SIP STOCK**: ₹{(available_balance / total_sip_count) if total_sip_count > 0 else 0:.2f} (if divided equally)
+{tech_info}{index_info}{trend_info}
 
 **USER'S ANALYSIS PARAMETERS**:
 {config.analysis_parameters}
 
-**YOUR TASK**: Decide SIP amount with SMART DYNAMIC ADJUSTMENT based on price levels and indicators.
+**YOUR TASK**: Decide SIP amount with SMART DYNAMIC ADJUSTMENT based on price levels, technical indicators, and market conditions.
 
 **IMPORTANT CONTEXT**:
 - You have {total_sip_count} total SIP stocks to manage
