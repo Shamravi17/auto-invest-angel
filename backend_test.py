@@ -86,14 +86,19 @@ class TradingBotTester:
             self.log_test("NSE Index Options API", "FAIL", f"API call failed: {response}")
             return False
         
-        # Verify response structure
-        if not isinstance(response, list):
-            self.log_test("NSE Index Options API", "FAIL", f"Expected list, got {type(response)}")
+        # Verify response structure (should be dict with 'indices' key)
+        if not isinstance(response, dict) or 'indices' not in response:
+            self.log_test("NSE Index Options API", "FAIL", f"Expected dict with 'indices' key, got {type(response)}")
+            return False
+        
+        indices_list = response['indices']
+        if not isinstance(indices_list, list):
+            self.log_test("NSE Index Options API", "FAIL", f"Expected indices to be list, got {type(indices_list)}")
             return False
         
         # Check for expected indices
         expected_indices = ["NIFTY 50", "NIFTY BANK", "NIFTY IT", "NIFTY AUTO"]
-        found_indices = [idx for idx in expected_indices if idx in response]
+        found_indices = [idx for idx in expected_indices if idx in indices_list]
         
         if len(found_indices) < 3:
             self.log_test("NSE Index Options API", "FAIL", f"Missing expected indices. Found: {found_indices}")
