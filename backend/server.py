@@ -1751,12 +1751,24 @@ async def run_trading_bot(manual_trigger: bool = False):
                 except Exception as e:
                     logger.warning(f"Error fetching market data: {e}")
             
-            # Get LLM decision with ISIN, adjusted available balance, and market data
+            # Fetch NSE Index Data if proxy_index is mapped
+            nse_index_data = None
+            proxy_index = item.get('proxy_index')
+            if proxy_index:
+                logger.info(f"🔍 Proxy index mapped for {symbol}: {proxy_index}")
+                logger.info(f"   Fetching live NSE data...")
+                nse_index_data = await fetch_nse_index_data(proxy_index, symbol)
+                if nse_index_data:
+                    logger.info(f"   ✅ NSE data fetched successfully")
+                else:
+                    logger.warning(f"   ⚠️ NSE data fetch failed - continuing without NSE data")
+            
+            # Get LLM decision with ISIN, adjusted available balance, market data, and NSE data
             llm_result = await get_llm_decision(
                 symbol, action, market_data, config, item, 
                 {"holdings": portfolio['holdings'], "available_cash": available_balance}, 
                 action_counts.get('sip', 0), isin,
-                tech_indicators, index_valuation, market_trend
+                tech_indicators, index_valuation, market_trend, nse_index_data
             )
             
             # Log analysis
