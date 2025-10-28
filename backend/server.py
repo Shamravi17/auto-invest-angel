@@ -1140,6 +1140,10 @@ You are a stock market analyst. Analyze whether to sell this holding.
 **INVESTMENT**: ₹{investment:.2f}
 **CURRENT VALUE**: ₹{current_value:.2f}
 **P&L**: ₹{pnl:.2f} ({pnl_pct:.2f}%)
+{tech_info}{index_info}{trend_info}
+
+**USER'S ANALYSIS PARAMETERS**:
+{config.analysis_parameters}
 
 **YOUR TASK**: Decide whether to sell this holding based on current market conditions, fundamentals, and technical analysis.
 
@@ -1155,6 +1159,7 @@ REASONING: <brief 2-3 line explanation>
 3. SELL: Use when fundamentals have deteriorated or better opportunities exist
 4. HOLD: When stock has more upside potential
 5. Consider brokerage charges (~0.5%) in your decision
+6. Use the provided technical indicators and market data to make informed decisions
 """
         elif action == "buy":
             quantity = item.get('quantity', 0) or 0
