@@ -1175,6 +1175,7 @@ You are a stock market analyst. Analyze this stock for BUY action.
 **PORTFOLIO CONTEXT**:
 - Current Quantity: {quantity}
 - Avg Price: ₹{avg_price:.2f}
+{tech_info}{index_info}{trend_info}
 
 **USER'S ANALYSIS PARAMETERS**:
 {config.analysis_parameters}
@@ -1186,7 +1187,7 @@ BUY_ACTION: EXECUTE or SKIP
 AMOUNT: <suggested investment amount in rupees>
 REASONING: <brief 2-3 line explanation>
 
-Provide your recommendation based on fundamentals and technical analysis.
+Provide your recommendation based on fundamentals, technical analysis, and market data.
 """
         else:
             # For other actions
