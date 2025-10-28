@@ -376,7 +376,8 @@ class TradingBotTester:
     
     async def run_all_tests(self):
         """Run all test scenarios"""
-        print(f"🤖 AI Trading Bot Backend Testing Suite")
+        print(f"🤖 AI Trading Bot Backend Testing Suite - Phase 1 & Phase 2")
+        print(f"Testing: Market Data in LLM Calls + NSE Index Data Service")
         print(f"Backend URL: {BACKEND_URL}")
         print(f"Test Started: {datetime.now().isoformat()}")
         print()
@@ -386,15 +387,13 @@ class TradingBotTester:
             print("❌ Backend connectivity failed. Aborting tests.")
             return
         
-        # Add new test for LLM prompt enhancement
-        await self.test_llm_prompt_enhancement()
-        
         # Run all Phase 1 & Phase 2 tests
         scenarios = [
             self.test_nse_index_options_api,
             self.test_nse_api_logs_endpoint,
             self.test_watchlist_crud_new_fields,
-            self.test_nse_data_integration
+            self.test_nse_data_integration,
+            self.test_llm_prompt_enhancement
         ]
         
         results = []
