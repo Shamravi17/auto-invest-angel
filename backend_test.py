@@ -296,6 +296,64 @@ class TradingBotTester:
         
         return True
     
+    async def test_llm_prompt_enhancement(self):
+        """Test 5: LLM Prompt Enhancement Verification"""
+        print("=" * 60)
+        print("TEST 5: LLM Prompt Enhancement Verification")
+        print("=" * 60)
+        
+        # Step 1: Get LLM logs to check for market data in prompts
+        status, llm_logs = await self.make_request("GET", "/api/llm-logs")
+        if status != 200:
+            self.log_test("Get LLM Logs", "FAIL", f"Failed to get LLM logs: {llm_logs}")
+            return False
+        
+        if not llm_logs:
+            self.log_test("Get LLM Logs", "WARN", "No LLM logs found - need bot run to generate logs")
+            return True  # Not a failure, just no data to verify
+        
+        # Step 2: Check recent logs for market data sections
+        market_data_indicators = [
+            "TECHNICAL INDICATORS",
+            "INDEX VALUATION", 
+            "NSE INDEX DATA",
+            "MARKET SENTIMENT"
+        ]
+        
+        enhanced_prompts = 0
+        total_prompts = len(llm_logs)
+        
+        for log in llm_logs[:10]:  # Check last 10 logs
+            prompt = log.get("full_prompt", "")
+            found_indicators = [indicator for indicator in market_data_indicators if indicator in prompt]
+            
+            if found_indicators:
+                enhanced_prompts += 1
+        
+        if enhanced_prompts > 0:
+            enhancement_rate = (enhanced_prompts / min(total_prompts, 10)) * 100
+            self.log_test("LLM Prompt Enhancement", "PASS", f"Found market data in {enhanced_prompts}/{min(total_prompts, 10)} recent prompts", {
+                "enhancement_rate": f"{enhancement_rate:.1f}%",
+                "total_logs": total_prompts,
+                "enhanced_count": enhanced_prompts
+            })
+        else:
+            self.log_test("LLM Prompt Enhancement", "WARN", "No market data sections found in recent prompts")
+        
+        # Step 3: Check for NSE data specifically if proxy_index mapping exists
+        nse_data_prompts = 0
+        for log in llm_logs[:5]:  # Check last 5 logs
+            prompt = log.get("full_prompt", "")
+            if "NSE INDEX DATA" in prompt and "Live" in prompt:
+                nse_data_prompts += 1
+        
+        if nse_data_prompts > 0:
+            self.log_test("NSE Data in Prompts", "PASS", f"Found NSE data in {nse_data_prompts} recent prompts")
+        else:
+            self.log_test("NSE Data in Prompts", "INFO", "No NSE data found in prompts (may not have proxy_index mappings)")
+        
+        return True
+    
     async def test_backend_connectivity(self):
         """Test basic backend connectivity"""
         print("=" * 60)
