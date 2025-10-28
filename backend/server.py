@@ -739,8 +739,8 @@ async def delete_watchlist_item(item_id: str):
     raise HTTPException(status_code=404, detail="Item not found")
 
 # ===== LLM DECISION LOGIC =====
-async def get_llm_decision(symbol: str, action: str, market_data: Dict, config: BotConfig, item: Dict, portfolio: Dict = None, total_sip_count: int = 0, isin: str = None) -> Dict:
-    """Get LLM decision for a trading action"""
+async def get_llm_decision(symbol: str, action: str, market_data: Dict, config: BotConfig, item: Dict, portfolio: Dict = None, total_sip_count: int = 0, isin: str = None, tech_indicators: Dict = None, index_valuation: Dict = None, market_trend: Dict = None) -> Dict:
+    """Get LLM decision for a trading action with enhanced market data"""
     try:
         # Get API key
         if config.llm_provider == "openai" and config.openai_api_key:
@@ -750,6 +750,50 @@ async def get_llm_decision(symbol: str, action: str, market_data: Dict, config: 
         
         # Build ISIN info string
         isin_info = f"\n**ISIN**: {isin}" if isin else ""
+        
+        # Build Technical Indicators section
+        tech_info = ""
+        if tech_indicators:
+            tech_parts = []
+            if tech_indicators.get('rsi_14'):
+                rsi = tech_indicators['rsi_14']
+                rsi_signal = "OVERSOLD" if rsi < 30 else "OVERBOUGHT" if rsi > 70 else "NEUTRAL"
+                tech_parts.append(f"RSI(14): {rsi:.1f} ({rsi_signal})")
+            if tech_indicators.get('macd') is not None and tech_indicators.get('macd_signal'):
+                macd_trend = "BULLISH" if tech_indicators['macd'] > tech_indicators['macd_signal'] else "BEARISH"
+                tech_parts.append(f"MACD: {tech_indicators['macd']:.2f} / Signal: {tech_indicators['macd_signal']:.2f} ({macd_trend})")
+            if tech_indicators.get('adx_14'):
+                adx = tech_indicators['adx_14']
+                adx_strength = "STRONG TREND" if adx > 25 else "WEAK TREND"
+                tech_parts.append(f"ADX(14): {adx:.1f} ({adx_strength})")
+            if tech_indicators.get('atr_14'):
+                tech_parts.append(f"ATR(14): {tech_indicators['atr_14']:.2f} (Volatility measure)")
+            
+            if tech_parts:
+                tech_info = "\n\n**TECHNICAL INDICATORS**:\n" + "\n".join([f"- {part}" for part in tech_parts])
+        
+        # Build Index Valuation section (for ETFs)
+        index_info = ""
+        if index_valuation and index_valuation.get('pe'):
+            index_parts = []
+            if index_valuation.get('pe'):
+                index_parts.append(f"P/E Ratio: {index_valuation['pe']:.2f}")
+            if index_valuation.get('pb'):
+                index_parts.append(f"P/B Ratio: {index_valuation['pb']:.2f}")
+            if index_valuation.get('div_yield'):
+                index_parts.append(f"Dividend Yield: {index_valuation['div_yield']:.2f}%")
+            if index_valuation.get('last_price'):
+                index_parts.append(f"Index Level: {index_valuation['last_price']:.2f}")
+            
+            if index_parts:
+                index_info = "\n\n**INDEX VALUATION** (Underlying benchmark):\n" + "\n".join([f"- {part}" for part in index_parts])
+        
+        # Build Market Trend section
+        trend_info = ""
+        if market_trend:
+            trend = market_trend.get('trend', 'neutral').upper()
+            volatility = market_trend.get('volatility', 'medium').upper()
+            trend_info = f"\n\n**MARKET SENTIMENT**: {trend} | Volatility: {volatility}"
         
         # Build prompt based on action
         if action == "sip":
