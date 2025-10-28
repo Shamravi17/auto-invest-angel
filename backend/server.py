@@ -1289,7 +1289,7 @@ You are a stock market analyst. Analyze whether to sell this holding.
 **INVESTMENT**: ₹{investment:.2f}
 **CURRENT VALUE**: ₹{current_value:.2f}
 **P&L**: ₹{pnl:.2f} ({pnl_pct:.2f}%)
-{tech_info}{index_info}{trend_info}
+{tech_info}{index_info}{nse_info}{trend_info}
 
 **USER'S ANALYSIS PARAMETERS**:
 {config.analysis_parameters}
