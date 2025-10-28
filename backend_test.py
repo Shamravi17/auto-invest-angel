@@ -244,7 +244,7 @@ class TradingBotTester:
         self.log_test("Setup Test Item", "PASS", f"Test item ready with proxy_index: {test_item.get('proxy_index')}")
         
         # Step 2: Trigger bot manually to test NSE integration
-        status, response = await self.make_request("POST", "/api/trigger-bot")
+        status, response = await self.make_request("POST", "/api/run-bot", {"manual": True})
         if status != 200:
             self.log_test("Trigger Bot", "FAIL", f"Failed to trigger bot: {response}")
             return False
