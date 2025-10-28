@@ -362,11 +362,11 @@ backend:
 
   - task: "Ensure ALL LLM calls include market data (Phase 1)"
     implemented: true
-    working: "NA"
+    working: false
     file: "/app/backend/server.py"
-    stuck_count: 0
+    stuck_count: 1
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
@@ -389,6 +389,32 @@ backend:
           - Verify SELL decisions now have market context in prompts
           - Verify BUY decisions have market context
           - Check LLM logs to confirm market data is present
+      - working: false
+        agent: "testing"
+        comment: |
+          ❌ PHASE 1 NOT WORKING - Critical Issue Found
+          
+          Testing Results:
+          - Examined recent LLM logs from /api/llm-logs
+          - NO market data sections found in any prompts
+          - Missing sections: TECHNICAL INDICATORS, INDEX VALUATION, NSE INDEX DATA, MARKET SENTIMENT
+          - Current prompts are basic without enhanced market context
+          
+          Example current prompt (SELL action):
+          "**STOCK**: LOWVOL1-EQ
+          **QUANTITY**: 1570
+          **AVG PRICE**: ₹19.21
+          **CURRENT PRICE**: ₹21.81
+          **P&L**: ₹4082.00 (13.53%)"
+          
+          Expected but MISSING:
+          - **TECHNICAL INDICATORS**: RSI, MACD, ADX sections
+          - **INDEX VALUATION**: P/E, P/B ratio sections  
+          - **NSE INDEX DATA**: Live index data sections
+          - **MARKET SENTIMENT**: Trend and volatility sections
+          
+          Root Cause: Phase 1 implementation not functioning in live environment
+          Action Required: Debug why market data sections not appearing in prompts
   
   - task: "NSE Index Data Service implementation (Phase 2)"
     implemented: true
