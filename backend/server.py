@@ -761,6 +761,119 @@ async def delete_watchlist_item(item_id: str):
         return {"success": True}
     raise HTTPException(status_code=404, detail="Item not found")
 
+
+# ===== NSE INDEX DATA SERVICE =====
+import aiohttp
+import time
+
+async def fetch_nse_index_data(proxy_index: str, symbol: str) -> Optional[Dict]:
+    """
+    Fetch live NSE index valuation data for a given proxy index
+    
+    Args:
+        proxy_index: NSE index name (e.g., "NIFTY 50", "NIFTY BANK")
+        symbol: Watchlist symbol that triggered this call (for logging)
+    
+    Returns:
+        Dictionary with index data: pe, pb, divYield, last, percentChange
+        Returns None if API call fails
+    """
+    start_time = time.time()
+    url = "https://www.nseindia.com/api/allIndices"
+    
+    # NSE requires specific headers to avoid blocking
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'application/json',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Referer': 'https://www.nseindia.com/'
+    }
+    
+    log_entry = NSEAPILog(
+        symbol=symbol,
+        proxy_index=proxy_index,
+        request_url=url,
+        request_headers=headers,
+        status="PENDING"
+    )
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as response:
+                execution_time = (time.time() - start_time) * 1000  # Convert to ms
+                
+                if response.status == 200:
+                    data = await response.json()
+                    
+                    # Find the matching index
+                    index_data = None
+                    for index_item in data.get('data', []):
+                        index_name = index_item.get('index', '').upper()
+                        # Match proxy_index (case insensitive, handle variations)
+                        if proxy_index.upper() in index_name or index_name in proxy_index.upper():
+                            index_data = {
+                                'pe': index_item.get('pe'),
+                                'pb': index_item.get('pb'),
+                                'divYield': index_item.get('divYield'),
+                                'last': index_item.get('last'),
+                                'percentChange': index_item.get('percentChange')
+                            }
+                            break
+                    
+                    if index_data:
+                        # Log success
+                        log_entry.response_data = index_data
+                        log_entry.status = "SUCCESS"
+                        log_entry.execution_time_ms = execution_time
+                        await db.nse_api_logs.insert_one(log_entry.model_dump())
+                        
+                        logger.info(f"✅ NSE data fetched for {proxy_index}: PE={index_data.get('pe')}, PB={index_data.get('pb')}")
+                        return index_data
+                    else:
+                        # Index not found in response
+                        error_msg = f"Index '{proxy_index}' not found in NSE response"
+                        log_entry.error = error_msg
+                        log_entry.status = "FAILED"
+                        log_entry.execution_time_ms = execution_time
+                        log_entry.response_data = {"available_indices": [idx.get('index') for idx in data.get('data', [])[:10]]}
+                        await db.nse_api_logs.insert_one(log_entry.model_dump())
+                        
+                        logger.warning(f"❌ {error_msg}")
+                        return None
+                else:
+                    # HTTP error
+                    error_msg = f"NSE API returned status {response.status}"
+                    log_entry.error = error_msg
+                    log_entry.status = "FAILED"
+                    log_entry.execution_time_ms = execution_time
+                    await db.nse_api_logs.insert_one(log_entry.model_dump())
+                    
+                    logger.error(f"❌ NSE API error: {error_msg}")
+                    return None
+                    
+    except asyncio.TimeoutError:
+        error_msg = "NSE API request timed out"
+        log_entry.error = error_msg
+        log_entry.status = "FAILED"
+        log_entry.execution_time_ms = (time.time() - start_time) * 1000
+        await db.nse_api_logs.insert_one(log_entry.model_dump())
+        
+        logger.error(f"❌ {error_msg}")
+        return None
+        
+    except Exception as e:
+        error_msg = f"NSE API error: {str(e)}"
+        log_entry.error = error_msg
+        log_entry.status = "FAILED"
+        log_entry.execution_time_ms = (time.time() - start_time) * 1000
+        await db.nse_api_logs.insert_one(log_entry.model_dump())
+        
+        logger.error(f"❌ {error_msg}")
+        return None
+
+
 # ===== LLM DECISION LOGIC =====
 async def get_llm_decision(symbol: str, action: str, market_data: Dict, config: BotConfig, item: Dict, portfolio: Dict = None, total_sip_count: int = 0, isin: str = None, tech_indicators: Dict = None, index_valuation: Dict = None, market_trend: Dict = None) -> Dict:
     """Get LLM decision for a trading action with enhanced market data"""
