@@ -875,7 +875,7 @@ async def fetch_nse_index_data(proxy_index: str, symbol: str) -> Optional[Dict]:
 
 
 # ===== LLM DECISION LOGIC =====
-async def get_llm_decision(symbol: str, action: str, market_data: Dict, config: BotConfig, item: Dict, portfolio: Dict = None, total_sip_count: int = 0, isin: str = None, tech_indicators: Dict = None, index_valuation: Dict = None, market_trend: Dict = None) -> Dict:
+async def get_llm_decision(symbol: str, action: str, market_data: Dict, config: BotConfig, item: Dict, portfolio: Dict = None, total_sip_count: int = 0, isin: str = None, tech_indicators: Dict = None, index_valuation: Dict = None, market_trend: Dict = None, nse_index_data: Dict = None) -> Dict:
     """Get LLM decision for a trading action with enhanced market data"""
     try:
         # Get API key
@@ -908,7 +908,7 @@ async def get_llm_decision(symbol: str, action: str, market_data: Dict, config: 
             if tech_parts:
                 tech_info = "\n\n**TECHNICAL INDICATORS**:\n" + "\n".join([f"- {part}" for part in tech_parts])
         
-        # Build Index Valuation section (for ETFs)
+        # Build Index Valuation section (for ETFs - from market_data_service)
         index_info = ""
         if index_valuation and index_valuation.get('pe'):
             index_parts = []
