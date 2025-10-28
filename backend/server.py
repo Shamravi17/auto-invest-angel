@@ -2145,6 +2145,14 @@ async def get_market_state_logs(limit: int = 30):
     logs = await db.market_state_logs.find({}, {"_id": 0}).sort("timestamp", -1).limit(limit).to_list(limit)
     return logs
 
+
+@app.get("/api/nse-api-logs")
+async def get_nse_api_logs(limit: int = 50):
+    """Get NSE API request/response logs (latest first)"""
+    logs = await db.nse_api_logs.find({}, {"_id": 0}).sort("timestamp", -1).limit(limit).to_list(limit)
+    return logs
+
+
 # Available LLM Models
 @app.get("/api/llm-models")
 async def get_available_models():
