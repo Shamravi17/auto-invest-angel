@@ -10,7 +10,7 @@ import os
 from datetime import datetime
 
 # Backend URL
-BACKEND_URL = "https://botfolio-3.preview.emergentagent.com"
+BACKEND_URL = "https://autotrade-llm.preview.emergentagent.com"
 
 def export_data():
     """Export all collections from the database"""
