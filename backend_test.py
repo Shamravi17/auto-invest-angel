@@ -131,53 +131,78 @@ class TradingBotTester:
         
         return True
     
-    async def test_scenario_3_market_status_check(self):
-        """Scenario 3: Test market status check for automatic runs"""
+    async def test_watchlist_crud_new_fields(self):
+        """Test 3: Watchlist CRUD with New Fields"""
         print("=" * 60)
-        print("SCENARIO 3: Market status check for automatic runs")
+        print("TEST 3: Watchlist CRUD with New Fields")
         print("=" * 60)
         
-        # Trigger automatic bot run
-        status, response = await self.make_request("POST", "/api/run-bot", {"manual": False})
+        # Step 1: Get existing watchlist
+        status, watchlist = await self.make_request("GET", "/api/watchlist")
         if status != 200:
-            self.log_test("Automatic Bot Trigger", "FAIL", f"Failed to trigger bot: {response}")
+            self.log_test("Get Watchlist", "FAIL", f"Failed to get watchlist: {watchlist}")
             return False
         
-        self.log_test("Automatic Bot Trigger", "PASS", "Successfully triggered automatic bot run")
+        if not watchlist:
+            self.log_test("Get Watchlist", "FAIL", "Watchlist is empty - need at least one item to test")
+            return False
         
-        # Wait for bot to complete
-        print("⏳ Waiting 10 seconds for bot to complete...")
-        await asyncio.sleep(10)
+        self.log_test("Get Watchlist", "PASS", f"Retrieved {len(watchlist)} watchlist items")
         
-        # Check logs for market status messages
-        logs = await self.get_backend_logs()
-        market_open_msg = False
-        market_closed_msg = False
+        # Step 2: Pick first item to update
+        test_item = watchlist[0]
+        item_id = test_item.get("id")
         
-        for line in logs.split('\n'):
-            if "✓ Market is OPEN. Proceeding with bot execution" in line:
-                market_open_msg = True
-            elif "⏸️ Market is CLOSED. Automatic bot execution aborted" in line:
-                market_closed_msg = True
+        if not item_id:
+            self.log_test("Item Selection", "FAIL", "No ID found in watchlist item")
+            return False
         
-        if market_open_msg:
-            self.log_test("Market Status Check", "PASS", "Found market OPEN message - bot proceeded")
-        elif market_closed_msg:
-            self.log_test("Market Status Check", "PASS", "Found market CLOSED message - bot aborted")
-        else:
-            self.log_test("Market Status Check", "WARN", "No clear market status messages found")
+        # Step 3: Update item with new fields
+        updated_item = test_item.copy()
+        updated_item["instrument_type"] = "ETF"
+        updated_item["proxy_index"] = "NIFTY 50"
         
-        # Check market state logs
-        status, market_logs = await self.make_request("GET", "/api/market-state-logs?limit=5")
-        if status == 200 and market_logs:
-            latest_log = market_logs[0]
-            self.log_test("Market State Logs", "PASS", "Retrieved market state logs", {
-                "latest_status": latest_log.get("market_status"),
-                "bot_executed": latest_log.get("bot_executed"),
-                "reason": latest_log.get("reason")
-            })
-        else:
-            self.log_test("Market State Logs", "WARN", f"Could not fetch market logs: {market_logs}")
+        status, response = await self.make_request("PUT", f"/api/watchlist/{item_id}", updated_item)
+        if status != 200:
+            self.log_test("Update Watchlist Item", "FAIL", f"Failed to update item: {response}")
+            return False
+        
+        self.log_test("Update Watchlist Item", "PASS", "Successfully updated with new fields", {
+            "item_id": item_id,
+            "instrument_type": response.get("instrument_type"),
+            "proxy_index": response.get("proxy_index")
+        })
+        
+        # Step 4: Verify fields were saved
+        status, updated_watchlist = await self.make_request("GET", "/api/watchlist")
+        if status != 200:
+            self.log_test("Verify Update", "FAIL", f"Failed to re-fetch watchlist: {updated_watchlist}")
+            return False
+        
+        # Find the updated item
+        updated_test_item = None
+        for item in updated_watchlist:
+            if item.get("id") == item_id:
+                updated_test_item = item
+                break
+        
+        if not updated_test_item:
+            self.log_test("Verify Update", "FAIL", "Updated item not found in watchlist")
+            return False
+        
+        # Check if new fields are present
+        if updated_test_item.get("instrument_type") != "ETF":
+            self.log_test("Verify Update", "FAIL", f"instrument_type not saved correctly: {updated_test_item.get('instrument_type')}")
+            return False
+        
+        if updated_test_item.get("proxy_index") != "NIFTY 50":
+            self.log_test("Verify Update", "FAIL", f"proxy_index not saved correctly: {updated_test_item.get('proxy_index')}")
+            return False
+        
+        self.log_test("Verify Update", "PASS", "New fields saved and retrieved correctly", {
+            "instrument_type": updated_test_item.get("instrument_type"),
+            "proxy_index": updated_test_item.get("proxy_index")
+        })
         
         return True
     
