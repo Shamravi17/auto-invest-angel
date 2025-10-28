@@ -2150,6 +2150,13 @@ async def get_performance_summary():
         return {
             "total_investment": 0,
             "current_value": 0,
+
+
+@app.get("/api/nse-index-options")
+async def get_nse_index_options():
+    """Get list of available NSE index names for proxy_index mapping"""
+    return {"indices": NSE_INDEX_OPTIONS}
+
             "total_pnl": 0,
             "total_pnl_pct": 0,
             "total_orders": 0,
