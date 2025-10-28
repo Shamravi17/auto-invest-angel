@@ -1571,8 +1571,37 @@ async def run_trading_bot(manual_trigger: bool = False):
                 }
                 isin = None
             
-            # Get LLM decision with ISIN and adjusted available balance
-            llm_result = await get_llm_decision(symbol, action, market_data, config, item, {"holdings": portfolio['holdings'], "available_cash": available_balance}, action_counts.get('sip', 0), isin)
+            # Fetch enhanced market data for LLM
+            tech_indicators = None
+            index_valuation = None
+            market_trend = None
+            
+            if market_data_service:
+                try:
+                    # Fetch technical indicators
+                    tech_indicators = await market_data_service.get_technical_indicators(symbol)
+                    logger.info(f"Fetched technical indicators for {symbol}")
+                    
+                    # Fetch index valuation (for ETFs)
+                    # TODO: Add proxy_index mapping logic
+                    # For now, use NIFTY 50 as default for all stocks
+                    index_valuation = await market_data_service.get_index_valuation("NIFTY 50")
+                    logger.info(f"Fetched index valuation")
+                    
+                    # Fetch market trend
+                    market_trend = await market_data_service.get_market_trend()
+                    logger.info(f"Fetched market trend")
+                    
+                except Exception as e:
+                    logger.warning(f"Error fetching market data: {e}")
+            
+            # Get LLM decision with ISIN, adjusted available balance, and market data
+            llm_result = await get_llm_decision(
+                symbol, action, market_data, config, item, 
+                {"holdings": portfolio['holdings'], "available_cash": available_balance}, 
+                action_counts.get('sip', 0), isin,
+                tech_indicators, index_valuation, market_trend
+            )
             
             # Log analysis
             analysis_log = AnalysisLog(
