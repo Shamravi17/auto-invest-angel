@@ -104,9 +104,9 @@ class TradingBotTester:
             self.log_test("NSE Index Options API", "FAIL", f"Missing expected indices. Found: {found_indices}")
             return False
         
-        self.log_test("NSE Index Options API", "PASS", f"Retrieved {len(response)} NSE indices", {
-            "total_indices": len(response),
-            "sample_indices": response[:5],
+        self.log_test("NSE Index Options API", "PASS", f"Retrieved {len(indices_list)} NSE indices", {
+            "total_indices": len(indices_list),
+            "sample_indices": indices_list[:5],
             "expected_found": len(found_indices)
         })
         
