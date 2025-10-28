@@ -19,6 +19,13 @@ from cryptography.fernet import Fernet
 import base64
 import pytz
 
+# Import market data service
+try:
+    from market_data_service import market_data_service
+except ImportError:
+    logger.warning("market_data_service not available - will use fallback data")
+    market_data_service = None
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
