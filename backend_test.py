@@ -107,56 +107,27 @@ class TradingBotTester:
         
         return True
     
-    async def test_scenario_2_auto_execute_false_automatic(self):
-        """Scenario 2: Test auto_execute_trades=False with automatic trigger"""
+    async def test_nse_api_logs_endpoint(self):
+        """Test 2: NSE API Logs Endpoint"""
         print("=" * 60)
-        print("SCENARIO 2: auto_execute_trades=False with automatic trigger")
+        print("TEST 2: NSE API Logs Endpoint")
         print("=" * 60)
         
-        # Ensure config still has auto_execute_trades=False
-        status, config = await self.make_request("GET", "/api/config")
-        if status != 200 or config.get("auto_execute_trades") != False:
-            self.log_test("Config Check", "FAIL", "auto_execute_trades not set to False")
-            return False
-        
-        self.log_test("Config Check", "PASS", "Confirmed auto_execute_trades=False")
-        
-        # Trigger automatic bot run
-        status, response = await self.make_request("POST", "/api/run-bot", {"manual": False})
+        # Test GET /api/nse-api-logs
+        status, response = await self.make_request("GET", "/api/nse-api-logs")
         if status != 200:
-            self.log_test("Automatic Bot Trigger", "FAIL", f"Failed to trigger bot: {response}")
+            self.log_test("NSE API Logs Endpoint", "FAIL", f"API call failed: {response}")
             return False
         
-        self.log_test("Automatic Bot Trigger", "PASS", "Successfully triggered automatic bot run", {
-            "manual": response.get("manual"),
-            "message": response.get("message")
+        # Verify response is a list (should be empty initially)
+        if not isinstance(response, list):
+            self.log_test("NSE API Logs Endpoint", "FAIL", f"Expected list, got {type(response)}")
+            return False
+        
+        self.log_test("NSE API Logs Endpoint", "PASS", f"Retrieved NSE API logs", {
+            "logs_count": len(response),
+            "status": "Empty initially" if len(response) == 0 else "Has existing logs"
         })
-        
-        # Wait for bot to complete
-        print("⏳ Waiting 10 seconds for bot to complete...")
-        await asyncio.sleep(10)
-        
-        # Check logs for SKIPPING messages
-        logs = await self.get_backend_logs()
-        skip_messages = []
-        execute_messages = []
-        
-        for line in logs.split('\n'):
-            if "⏭️ SKIPPING order execution" in line:
-                skip_messages.append(line.strip())
-            elif "✅ PROCEEDING with order execution" in line:
-                execute_messages.append(line.strip())
-        
-        if skip_messages:
-            self.log_test("Log Verification - SKIP", "PASS", f"Found {len(skip_messages)} SKIP messages")
-        else:
-            self.log_test("Log Verification - SKIP", "WARN", "No SKIP messages found in logs")
-        
-        if execute_messages:
-            self.log_test("Log Verification - EXECUTE", "FAIL", f"Found {len(execute_messages)} EXECUTE messages (should be 0)")
-            return False
-        else:
-            self.log_test("Log Verification - EXECUTE", "PASS", "No EXECUTE messages found (correct)")
         
         return True
     
