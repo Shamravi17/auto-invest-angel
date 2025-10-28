@@ -798,6 +798,11 @@ function App() {
                                   >
                                     {item.action.toUpperCase()}
                                   </Badge>
+                                  {item.instrument_type && (
+                                    <Badge className="bg-purple-100 text-purple-800 border-purple-200">
+                                      {item.instrument_type}
+                                    </Badge>
+                                  )}
                                   {holding && <Badge className="bg-green-100 text-green-800">In Portfolio</Badge>}
                                   {item.awaiting_reentry && (
                                     <Badge className="bg-amber-100 text-amber-800 border-amber-200">
@@ -806,6 +811,11 @@ function App() {
                                   )}
                                 </div>
                                 <p className="text-sm text-slate-500">{item.exchange} • Token: {item.symbol_token}</p>
+                                {item.proxy_index && (
+                                  <p className="text-xs text-blue-600 mt-1">
+                                    📊 Proxy Index: {item.proxy_index}
+                                  </p>
+                                )}
                                 {item.awaiting_reentry && item.exit_amount && (
                                   <p className="text-xs text-amber-600 mt-1">
                                     Reserved: ₹{item.exit_amount.toFixed(2)} (Exit @ ₹{item.exit_price?.toFixed(2) || '0.00'} on {item.exit_date})
