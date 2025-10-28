@@ -439,6 +439,10 @@ function App() {
               <Calendar className="w-4 h-4 mr-2" />
               Market Days
             </TabsTrigger>
+            <TabsTrigger value="nse-logs" data-testid="nse-logs-tab" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+              <BarChart3 className="w-4 h-4 mr-2" />
+              NSE API Logs
+            </TabsTrigger>
           </TabsList>
 
           {/* Portfolio Tab */}
