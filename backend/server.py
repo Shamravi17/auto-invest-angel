@@ -90,6 +90,35 @@ smart_api: Optional[SmartConnect] = None
 auth_tokens: Optional[Dict] = None
 current_session_id = None
 
+
+# NSE Index Names (for proxy_index dropdown)
+NSE_INDEX_OPTIONS = [
+    "NIFTY 50",
+    "NIFTY NEXT 50", 
+    "NIFTY 100",
+    "NIFTY 200",
+    "NIFTY 500",
+    "NIFTY MIDCAP 50",
+    "NIFTY MIDCAP 100",
+    "NIFTY MIDCAP 150",
+    "NIFTY SMALLCAP 50",
+    "NIFTY SMALLCAP 100",
+    "NIFTY SMALLCAP 250",
+    "NIFTY BANK",
+    "NIFTY AUTO",
+    "NIFTY FINANCIAL SERVICES",
+    "NIFTY IT",
+    "NIFTY PHARMA",
+    "NIFTY FMCG",
+    "NIFTY METAL",
+    "NIFTY REALTY",
+    "NIFTY ENERGY",
+    "NIFTY INFRA",
+    "NIFTY MEDIA",
+    "NIFTY PSU BANK"
+]
+
+
 # ===== MODELS =====
 class BotConfig(BaseModel):
     is_active: bool = False
