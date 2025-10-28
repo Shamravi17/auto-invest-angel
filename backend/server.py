@@ -795,7 +795,7 @@ async def delete_watchlist_item(item_id: str):
 import aiohttp
 import time
 
-async def fetch_nse_index_data(proxy_index: str, symbol: str) -> Optional[Dict]:
+async def fetch_nse_index_data(proxy_index: str, symbol: str, retry_count: int = 2) -> Optional[Dict]:
     """
     Fetch live NSE index valuation data for a given proxy index
     Uses session warm-up approach to avoid 403 errors
@@ -803,10 +803,13 @@ async def fetch_nse_index_data(proxy_index: str, symbol: str) -> Optional[Dict]:
     Args:
         proxy_index: NSE index name (e.g., "NIFTY 50", "NIFTY BANK")
         symbol: Watchlist symbol that triggered this call (for logging)
+        retry_count: Number of retries on failure (default: 2)
     
     Returns:
         Dictionary with index data: pe, pb, divYield, last, percentChange
         Returns None if API call fails
+        
+    Note: NSE blocks datacenter IPs. This works best from residential IPs or during market hours.
     """
     start_time = time.time()
     url = "https://www.nseindia.com/api/allIndices"
@@ -817,8 +820,11 @@ async def fetch_nse_index_data(proxy_index: str, symbol: str) -> Optional[Dict]:
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
         'Accept': 'application/json',
         'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
         'Connection': 'keep-alive',
-        'Referer': 'https://www.nseindia.com/'
+        'Referer': 'https://www.nseindia.com/',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
     }
     
     log_entry = NSEAPILog(
@@ -829,21 +835,42 @@ async def fetch_nse_index_data(proxy_index: str, symbol: str) -> Optional[Dict]:
         status="PENDING"
     )
     
-    try:
-        # Create session and warm up with homepage visit (avoids 403)
-        async with aiohttp.ClientSession() as session:
-            # Step 1: Visit homepage to get cookies
-            logger.info(f"🔄 NSE warm-up: Visiting homepage for cookies...")
-            async with session.get(homepage, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as homepage_resp:
-                if homepage_resp.status != 200:
-                    logger.warning(f"NSE homepage returned status {homepage_resp.status}")
-            
-            # Step 2: Small delay for cookies to settle
-            await asyncio.sleep(1)
-            
-            # Step 3: Now call the actual API
-            logger.info(f"📊 NSE API: Fetching index data...")
-            async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=15)) as response:
+    for attempt in range(retry_count + 1):
+        try:
+            # Create session with SSL disabled for better compatibility
+            connector = aiohttp.TCPConnector(ssl=False)
+            async with aiohttp.ClientSession(connector=connector) as session:
+                # Step 1: Visit homepage to get cookies
+                if attempt == 0:
+                    logger.info(f"🔄 NSE: Warming up session (attempt {attempt + 1}/{retry_count + 1})...")
+                    
+                async with session.get(homepage, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as homepage_resp:
+                    homepage_status = homepage_resp.status
+                    if homepage_status == 403:
+                        error_msg = "NSE homepage blocked (403) - Datacenter IP likely blocked. Will retry or skip."
+                        logger.warning(f"⚠️ {error_msg}")
+                        if attempt < retry_count:
+                            await asyncio.sleep(2 ** attempt)  # Exponential backoff
+                            continue
+                        else:
+                            # Last attempt failed
+                            log_entry.error = f"{error_msg} (All {retry_count + 1} attempts failed)"
+                            log_entry.status = "FAILED"
+                            log_entry.execution_time_ms = (time.time() - start_time) * 1000
+                            await db.nse_api_logs.insert_one(log_entry.model_dump())
+                            logger.error(f"❌ NSE API unavailable after {retry_count + 1} attempts")
+                            return None
+                    elif homepage_status != 200:
+                        logger.warning(f"NSE homepage returned status {homepage_status}")
+                
+                # Step 2: Small delay for cookies to settle
+                await asyncio.sleep(1)
+                
+                # Step 3: Now call the actual API
+                if attempt == 0:
+                    logger.info(f"📊 NSE API: Fetching {proxy_index} data...")
+                    
+                async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=15)) as response:
                 execution_time = (time.time() - start_time) * 1000  # Convert to ms
                 
                 if response.status == 200:
