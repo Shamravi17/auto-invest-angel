@@ -68,7 +68,7 @@ function App() {
 
   const fetchData = async () => {
     try {
-      const [statusRes, configRes, watchlistRes, logsRes, portfolioRes, analysesRes, credsRes, llmLogsRes, ordersRes, marketLogsRes] = await Promise.all([
+      const [statusRes, configRes, watchlistRes, logsRes, portfolioRes, analysesRes, credsRes, llmLogsRes, ordersRes, marketLogsRes, nseLogsRes, nseIndexRes] = await Promise.all([
         axios.get(`${API}/status`),
         axios.get(`${API}/config`),
         axios.get(`${API}/watchlist`),
@@ -78,7 +78,9 @@ function App() {
         axios.get(`${API}/credentials`).catch(e => ({ data: null })),
         axios.get(`${API}/llm-logs?limit=50`),
         axios.get(`${API}/executed-orders?limit=100`),
-        axios.get(`${API}/market-state-logs?limit=30`)
+        axios.get(`${API}/market-state-logs?limit=30`),
+        axios.get(`${API}/nse-api-logs?limit=50`),
+        axios.get(`${API}/nse-index-options`)
       ]);
       
       setStatus(statusRes.data);
@@ -91,6 +93,8 @@ function App() {
       setLlmLogs(llmLogsRes.data);
       setExecutedOrders(ordersRes.data);
       setMarketStateLogs(marketLogsRes.data);
+      setNseApiLogs(nseLogsRes.data);
+      setNseIndexOptions(nseIndexRes.data.indices || []);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching data:', error);
