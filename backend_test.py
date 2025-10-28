@@ -328,12 +328,15 @@ class TradingBotTester:
             print("❌ Backend connectivity failed. Aborting tests.")
             return
         
-        # Run all scenarios
+        # Add new test for LLM prompt enhancement
+        await self.test_llm_prompt_enhancement()
+        
+        # Run all Phase 1 & Phase 2 tests
         scenarios = [
-            self.test_scenario_1_auto_execute_false_manual,
-            self.test_scenario_2_auto_execute_false_automatic,
-            self.test_scenario_3_market_status_check,
-            self.test_scenario_4_manual_bypass_market_check
+            self.test_nse_index_options_api,
+            self.test_nse_api_logs_endpoint,
+            self.test_watchlist_crud_new_fields,
+            self.test_nse_data_integration
         ]
         
         results = []
