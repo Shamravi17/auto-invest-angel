@@ -798,6 +798,7 @@ import time
 async def fetch_nse_index_data(proxy_index: str, symbol: str) -> Optional[Dict]:
     """
     Fetch live NSE index valuation data for a given proxy index
+    Uses session warm-up approach to avoid 403 errors
     
     Args:
         proxy_index: NSE index name (e.g., "NIFTY 50", "NIFTY BANK")
@@ -809,13 +810,13 @@ async def fetch_nse_index_data(proxy_index: str, symbol: str) -> Optional[Dict]:
     """
     start_time = time.time()
     url = "https://www.nseindia.com/api/allIndices"
+    homepage = "https://www.nseindia.com/"
     
     # NSE requires specific headers to avoid blocking
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
         'Accept': 'application/json',
         'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
         'Connection': 'keep-alive',
         'Referer': 'https://www.nseindia.com/'
     }
@@ -829,8 +830,20 @@ async def fetch_nse_index_data(proxy_index: str, symbol: str) -> Optional[Dict]:
     )
     
     try:
+        # Create session and warm up with homepage visit (avoids 403)
         async with aiohttp.ClientSession() as session:
-            async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as response:
+            # Step 1: Visit homepage to get cookies
+            logger.info(f"🔄 NSE warm-up: Visiting homepage for cookies...")
+            async with session.get(homepage, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as homepage_resp:
+                if homepage_resp.status != 200:
+                    logger.warning(f"NSE homepage returned status {homepage_resp.status}")
+            
+            # Step 2: Small delay for cookies to settle
+            await asyncio.sleep(1)
+            
+            # Step 3: Now call the actual API
+            logger.info(f"📊 NSE API: Fetching index data...")
+            async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=15)) as response:
                 execution_time = (time.time() - start_time) * 1000  # Convert to ms
                 
                 if response.status == 200:
