@@ -795,7 +795,7 @@ async def delete_watchlist_item(item_id: str):
 import aiohttp
 import time
 
-async def fetch_nse_index_data(proxy_index: str, symbol: str, retry_count: int = 2) -> Optional[Dict]:
+async def fetch_nse_index_data(proxy_index: str, symbol: str, retry_count: int = 1) -> Optional[Dict]:
     """
     Fetch live NSE index valuation data for a given proxy index
     Uses session warm-up approach to avoid 403 errors
@@ -803,7 +803,7 @@ async def fetch_nse_index_data(proxy_index: str, symbol: str, retry_count: int =
     Args:
         proxy_index: NSE index name (e.g., "NIFTY 50", "NIFTY BANK")
         symbol: Watchlist symbol that triggered this call (for logging)
-        retry_count: Number of retries on failure (default: 2)
+        retry_count: Number of retries on failure (default: 1)
     
     Returns:
         Dictionary with index data: pe, pb, divYield, last, percentChange
@@ -842,105 +842,111 @@ async def fetch_nse_index_data(proxy_index: str, symbol: str, retry_count: int =
             async with aiohttp.ClientSession(connector=connector) as session:
                 # Step 1: Visit homepage to get cookies
                 if attempt == 0:
-                    logger.info(f"🔄 NSE: Warming up session (attempt {attempt + 1}/{retry_count + 1})...")
+                    logger.info(f"🔄 NSE: Warming up session for {proxy_index}...")
                     
                 async with session.get(homepage, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as homepage_resp:
                     homepage_status = homepage_resp.status
                     if homepage_status == 403:
-                        error_msg = "NSE homepage blocked (403) - Datacenter IP likely blocked. Will retry or skip."
+                        error_msg = "NSE blocked (403) - Datacenter IP. Bot continues without NSE data."
                         logger.warning(f"⚠️ {error_msg}")
                         if attempt < retry_count:
                             await asyncio.sleep(2 ** attempt)  # Exponential backoff
                             continue
                         else:
                             # Last attempt failed
-                            log_entry.error = f"{error_msg} (All {retry_count + 1} attempts failed)"
+                            log_entry.error = f"{error_msg} (Tried {retry_count + 1} times)"
                             log_entry.status = "FAILED"
                             log_entry.execution_time_ms = (time.time() - start_time) * 1000
                             await db.nse_api_logs.insert_one(log_entry.model_dump())
-                            logger.error(f"❌ NSE API unavailable after {retry_count + 1} attempts")
                             return None
                     elif homepage_status != 200:
-                        logger.warning(f"NSE homepage returned status {homepage_status}")
+                        logger.warning(f"NSE homepage: status {homepage_status}")
                 
-                # Step 2: Small delay for cookies to settle
+                # Step 2: Small delay for cookies
                 await asyncio.sleep(1)
                 
-                # Step 3: Now call the actual API
+                # Step 3: Call API
                 if attempt == 0:
-                    logger.info(f"📊 NSE API: Fetching {proxy_index} data...")
+                    logger.info(f"📊 NSE API: Fetching {proxy_index}...")
                     
                 async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=15)) as response:
-                execution_time = (time.time() - start_time) * 1000  # Convert to ms
-                
-                if response.status == 200:
-                    data = await response.json()
+                    execution_time = (time.time() - start_time) * 1000
                     
-                    # Find the matching index
-                    index_data = None
-                    for index_item in data.get('data', []):
-                        index_name = index_item.get('index', '').upper()
-                        # Match proxy_index (case insensitive, handle variations)
-                        if proxy_index.upper() in index_name or index_name in proxy_index.upper():
-                            index_data = {
-                                'pe': index_item.get('pe'),
-                                'pb': index_item.get('pb'),
-                                'divYield': index_item.get('divYield'),
-                                'last': index_item.get('last'),
-                                'percentChange': index_item.get('percentChange')
-                            }
-                            break
-                    
-                    if index_data:
-                        # Log success
-                        log_entry.response_data = index_data
-                        log_entry.status = "SUCCESS"
-                        log_entry.execution_time_ms = execution_time
-                        await db.nse_api_logs.insert_one(log_entry.model_dump())
+                    if response.status == 200:
+                        data = await response.json()
                         
-                        logger.info(f"✅ NSE data fetched for {proxy_index}: PE={index_data.get('pe')}, PB={index_data.get('pb')}")
-                        return index_data
+                        # Find matching index
+                        index_data = None
+                        for index_item in data.get('data', []):
+                            index_name = index_item.get('index', '').upper()
+                            if proxy_index.upper() in index_name or index_name in proxy_index.upper():
+                                index_data = {
+                                    'pe': index_item.get('pe'),
+                                    'pb': index_item.get('pb'),
+                                    'divYield': index_item.get('divYield'),
+                                    'last': index_item.get('last'),
+                                    'percentChange': index_item.get('percentChange')
+                                }
+                                break
+                        
+                        if index_data:
+                            log_entry.response_data = index_data
+                            log_entry.status = "SUCCESS"
+                            log_entry.execution_time_ms = execution_time
+                            await db.nse_api_logs.insert_one(log_entry.model_dump())
+                            logger.info(f"✅ NSE: {proxy_index} PE={index_data.get('pe')}, PB={index_data.get('pb')}")
+                            return index_data
+                        else:
+                            error_msg = f"Index '{proxy_index}' not found"
+                            log_entry.error = error_msg
+                            log_entry.status = "FAILED"
+                            log_entry.execution_time_ms = execution_time
+                            log_entry.response_data = {"available_indices": [idx.get('index') for idx in data.get('data', [])[:10]]}
+                            await db.nse_api_logs.insert_one(log_entry.model_dump())
+                            logger.warning(f"❌ {error_msg}")
+                            return None
+                    elif response.status == 403:
+                        error_msg = "NSE API 403 - IP blocked"
+                        if attempt < retry_count:
+                            logger.warning(f"⚠️ {error_msg}, retrying...")
+                            await asyncio.sleep(2 ** attempt)
+                            continue
+                        else:
+                            log_entry.error = f"{error_msg} (Tried {retry_count + 1} times)"
+                            log_entry.status = "FAILED"
+                            log_entry.execution_time_ms = execution_time
+                            await db.nse_api_logs.insert_one(log_entry.model_dump())
+                            logger.error(f"❌ {error_msg}")
+                            return None
                     else:
-                        # Index not found in response
-                        error_msg = f"Index '{proxy_index}' not found in NSE response"
+                        error_msg = f"NSE API status {response.status}"
                         log_entry.error = error_msg
                         log_entry.status = "FAILED"
                         log_entry.execution_time_ms = execution_time
-                        log_entry.response_data = {"available_indices": [idx.get('index') for idx in data.get('data', [])[:10]]}
                         await db.nse_api_logs.insert_one(log_entry.model_dump())
-                        
-                        logger.warning(f"❌ {error_msg}")
+                        logger.error(f"❌ {error_msg}")
                         return None
-                else:
-                    # HTTP error
-                    error_msg = f"NSE API returned status {response.status}"
-                    log_entry.error = error_msg
-                    log_entry.status = "FAILED"
-                    log_entry.execution_time_ms = execution_time
-                    await db.nse_api_logs.insert_one(log_entry.model_dump())
-                    
-                    logger.error(f"❌ NSE API error: {error_msg}")
-                    return None
-                    
-    except asyncio.TimeoutError:
-        error_msg = "NSE API request timed out"
-        log_entry.error = error_msg
-        log_entry.status = "FAILED"
-        log_entry.execution_time_ms = (time.time() - start_time) * 1000
-        await db.nse_api_logs.insert_one(log_entry.model_dump())
-        
-        logger.error(f"❌ {error_msg}")
-        return None
-        
-    except Exception as e:
-        error_msg = f"NSE API error: {str(e)}"
-        log_entry.error = error_msg
-        log_entry.status = "FAILED"
-        log_entry.execution_time_ms = (time.time() - start_time) * 1000
-        await db.nse_api_logs.insert_one(log_entry.model_dump())
-        
-        logger.error(f"❌ {error_msg}")
-        return None
+                        
+        except asyncio.TimeoutError:
+            error_msg = "NSE API timeout"
+            log_entry.error = error_msg
+            log_entry.status = "FAILED"
+            log_entry.execution_time_ms = (time.time() - start_time) * 1000
+            await db.nse_api_logs.insert_one(log_entry.model_dump())
+            logger.error(f"❌ {error_msg}")
+            return None
+            
+        except Exception as e:
+            error_msg = f"NSE error: {str(e)}"
+            log_entry.error = error_msg
+            log_entry.status = "FAILED"
+            log_entry.execution_time_ms = (time.time() - start_time) * 1000
+            await db.nse_api_logs.insert_one(log_entry.model_dump())
+            logger.error(f"❌ {error_msg}")
+            return None
+    
+    # Should not reach here
+    return None
 
 
 # ===== LLM DECISION LOGIC =====
