@@ -359,6 +359,83 @@ backend:
           - Returns llm_prompt_logs collection sorted by timestamp
           - Portfolio analysis now also logs prompts/responses
 
+
+  - task: "Ensure ALL LLM calls include market data (Phase 1)"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          ✅ IMPLEMENTED - Phase 1 Complete
+          
+          Changes made:
+          - Updated SELL action prompt to include {tech_info}{index_info}{nse_info}{trend_info}
+          - Updated BUY action prompt to include market data
+          - Updated generic action handler to include market data
+          - All LLM prompts now consistently include available market data
+          
+          Code changes (lines 1123-1365):
+          - SELL prompt: Added market data sections after P&L display
+          - BUY prompt: Added market data sections after portfolio context
+          - Generic handler: Added market data sections
+          - Only sends available data fields (no dummy data)
+          
+          Needs Testing:
+          - Verify SELL decisions now have market context in prompts
+          - Verify BUY decisions have market context
+          - Check LLM logs to confirm market data is present
+  
+  - task: "NSE Index Data Service implementation (Phase 2)"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          ✅ IMPLEMENTED - Phase 2 Complete
+          
+          Backend Changes:
+          1. Models (lines 122-168):
+             - Added instrument_type and proxy_index to WatchlistItem
+             - Created NSEAPILog model for request/response logging
+          
+          2. NSE Data Service (lines 765-875):
+             - fetch_nse_index_data() function with proper headers
+             - Logs all requests/responses to nse_api_logs collection
+             - Extracts: pe, pb, divYield, last, percentChange
+             - Returns None on failure (doesn't break bot execution)
+          
+          3. LLM Integration (lines 878-1365):
+             - Added nse_index_data parameter to get_llm_decision
+             - Builds NSE info section for prompts
+             - All action types include NSE data when available
+          
+          4. Bot Execution (lines 1730-1775):
+             - Fetches NSE data if proxy_index mapped
+             - Passes NSE data to get_llm_decision
+             - Logs success/failure for debugging
+          
+          5. API Endpoints:
+             - GET /api/nse-api-logs (line 2149)
+             - GET /api/nse-index-options (line 2159)
+             - Returns list of 23 NSE indices
+          
+          Needs Testing:
+          - Test NSE API call with valid proxy_index
+          - Verify data appears in LLM prompts
+          - Check NSE API logs are created
+          - Test with invalid proxy_index (should log error, continue)
+          - Verify bot works without proxy_index (backward compatible)
+
 frontend:
   - task: "Add credentials management UI"
     implemented: true
