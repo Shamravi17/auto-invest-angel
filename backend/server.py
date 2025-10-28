@@ -201,6 +201,18 @@ class MarketStateLog(BaseModel):
     bot_executed: bool  # Whether bot ran on this day
     reason: Optional[str] = None  # Why bot didn't run (if applicable)
 
+class NSEAPILog(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    timestamp: str = Field(default_factory=get_ist_timestamp)
+    symbol: str  # The watchlist symbol that triggered this call
+    proxy_index: str  # The NSE index being fetched (e.g., "NIFTY 50")
+    request_url: str
+    request_headers: Optional[Dict[str, Any]] = None
+    response_data: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+    status: str  # "SUCCESS" or "FAILED"
+    execution_time_ms: Optional[float] = None
+
 # ===== STARTUP & TTL SETUP =====
 @app.on_event("startup")
 async def startup_tasks():
