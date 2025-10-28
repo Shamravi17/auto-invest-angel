@@ -476,6 +476,76 @@ frontend:
     working: true
     file: "/app/frontend/src/App.js"
     stuck_count: 0
+
+  - task: "Watchlist UI - Display Instrument Type & Proxy Index (Phase 2)"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          ✅ IMPLEMENTED
+          
+          Changes:
+          1. State Management (lines 48-49):
+             - Added nseApiLogs state
+             - Added nseIndexOptions state
+          
+          2. Data Fetching (lines 67-92):
+             - Fetches NSE API logs in fetchData()
+             - Fetches NSE index options list
+          
+          3. Watchlist Display (lines 794-820):
+             - Shows Instrument Type badge (purple) if set
+             - Shows Proxy Index below exchange info (blue text with 📊 icon)
+          
+          4. Edit Dialog (lines 902-945):
+             - Added Instrument Type dropdown (ETF/Equity)
+             - Added Proxy Index dropdown with all 23 NSE indices
+             - Includes "None" option to clear mapping
+             - Shows helper text explaining proxy index usage
+          
+          Needs Testing:
+          - Edit watchlist item and set instrument_type
+          - Set proxy_index and verify it displays
+          - Check if dropdown shows all NSE indices
+          - Verify changes save to backend
+  
+  - task: "NSE API Logs Tab (Phase 2)"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          ✅ IMPLEMENTED
+          
+          Changes:
+          1. Added "NSE API Logs" tab trigger (lines 442-446)
+          
+          2. Tab Content (lines 1793-1892):
+             - Shows empty state when no logs
+             - Displays logs with SUCCESS/FAILED status badges
+             - Success: Shows PE, PB, Div Yield, Index Level, % Change
+             - Failure: Shows error message and available indices
+             - Shows execution time and timestamp
+             - Expandable request details
+          
+          Needs Testing:
+          - Navigate to NSE API Logs tab
+          - Verify empty state shows correctly
+          - After bot runs with proxy_index, check logs appear
+          - Verify data display for successful calls
+          - Verify error display for failed calls
+
     priority: "medium"
     needs_retesting: false
     status_history:
