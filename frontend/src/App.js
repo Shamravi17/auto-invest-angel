@@ -1787,6 +1787,110 @@ function App() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* NSE API Logs Tab */}
+          <TabsContent value="nse-logs">
+            <Card className="bg-white/90 backdrop-blur border-slate-200">
+              <CardHeader>
+                <CardTitle>NSE API Logs</CardTitle>
+                <CardDescription>Request/Response logs for NSE Index Data API calls</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {nseApiLogs.length === 0 ? (
+                  <div className="text-center py-12">
+                    <BarChart3 className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                    <p className="text-slate-500 text-lg mb-2">No NSE API calls yet</p>
+                    <p className="text-xs text-slate-400">Logs will appear when bot fetches index data for symbols with proxy_index mapped</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {nseApiLogs.map((log) => (
+                      <div key={log.id} className={`p-4 rounded-lg border ${log.status === 'SUCCESS' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-3">
+                            <span className="font-semibold text-slate-800">{log.symbol}</span>
+                            <Badge className={log.status === 'SUCCESS' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}>
+                              {log.status}
+                            </Badge>
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                              {log.proxy_index}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-slate-500">
+                            {log.execution_time_ms && (
+                              <span>{log.execution_time_ms.toFixed(0)}ms</span>
+                            )}
+                            <span>{new Date(log.timestamp).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit' })} IST</span>
+                          </div>
+                        </div>
+                        
+                        {/* Success - Show Data */}
+                        {log.status === 'SUCCESS' && log.response_data && (
+                          <div className="grid grid-cols-5 gap-2 mt-3 p-3 bg-white rounded border border-green-200">
+                            {log.response_data.pe && (
+                              <div className="text-xs">
+                                <span className="text-slate-500">P/E:</span>
+                                <p className="font-semibold">{log.response_data.pe.toFixed(2)}</p>
+                              </div>
+                            )}
+                            {log.response_data.pb && (
+                              <div className="text-xs">
+                                <span className="text-slate-500">P/B:</span>
+                                <p className="font-semibold">{log.response_data.pb.toFixed(2)}</p>
+                              </div>
+                            )}
+                            {log.response_data.divYield && (
+                              <div className="text-xs">
+                                <span className="text-slate-500">Div Yield:</span>
+                                <p className="font-semibold">{log.response_data.divYield.toFixed(2)}%</p>
+                              </div>
+                            )}
+                            {log.response_data.last && (
+                              <div className="text-xs">
+                                <span className="text-slate-500">Index:</span>
+                                <p className="font-semibold">{log.response_data.last.toFixed(2)}</p>
+                              </div>
+                            )}
+                            {log.response_data.percentChange !== undefined && (
+                              <div className="text-xs">
+                                <span className="text-slate-500">Change:</span>
+                                <p className={`font-semibold ${log.response_data.percentChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                  {log.response_data.percentChange >= 0 ? '+' : ''}{log.response_data.percentChange.toFixed(2)}%
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Failure - Show Error */}
+                        {log.status === 'FAILED' && log.error && (
+                          <div className="mt-2 p-3 bg-red-100 rounded border border-red-300">
+                            <p className="text-xs font-mono text-red-800">{log.error}</p>
+                            {log.response_data?.available_indices && (
+                              <details className="mt-2">
+                                <summary className="text-xs text-red-700 cursor-pointer">View available indices</summary>
+                                <div className="mt-2 text-xs text-red-700 max-h-32 overflow-y-auto">
+                                  {log.response_data.available_indices.join(', ')}
+                                </div>
+                              </details>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Request URL */}
+                        <details className="mt-2">
+                          <summary className="text-xs text-slate-500 cursor-pointer">Request details</summary>
+                          <div className="mt-1 p-2 bg-slate-100 rounded text-xs font-mono text-slate-700">
+                            {log.request_url}
+                          </div>
+                        </details>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </main>
     </div>
