@@ -1350,7 +1350,7 @@ You are a stock market analyst. Analyze this stock for {action.upper()} action.
 **STOCK**: {symbol}{isin_info}
 **CURRENT PRICE**: ₹{ltp:.2f}
 **PORTFOLIO CONTEXT**: Quantity: {quantity}, Avg Price: ₹{avg_price:.2f}
-{tech_info}{index_info}{trend_info}
+{tech_info}{index_info}{nse_info}{trend_info}
 
 **USER'S ANALYSIS PARAMETERS**:
 {config.analysis_parameters}
