@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 AI Trading Bot Backend Testing Suite
-Tests critical fixes for auto_execute_trades flag and market status checks
+Tests Phase 1 & Phase 2 features: Market Data in LLM Calls + NSE Index Data Service
 """
 
 import asyncio
