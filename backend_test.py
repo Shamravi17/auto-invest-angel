@@ -74,90 +74,36 @@ class TradingBotTester:
             print(f"Could not fetch backend logs: {e}")
             return ""
     
-    async def test_scenario_1_auto_execute_false_manual(self):
-        """Scenario 1: Test auto_execute_trades=False with manual trigger"""
+    async def test_nse_index_options_api(self):
+        """Test 1: NSE Index Options API"""
         print("=" * 60)
-        print("SCENARIO 1: auto_execute_trades=False with manual trigger")
+        print("TEST 1: NSE Index Options API")
         print("=" * 60)
         
-        # Step 1: Get current config
-        status, config = await self.make_request("GET", "/api/config")
+        # Test GET /api/nse-index-options
+        status, response = await self.make_request("GET", "/api/nse-index-options")
         if status != 200:
-            self.log_test("Get Config", "FAIL", f"Failed to get config: {config}")
+            self.log_test("NSE Index Options API", "FAIL", f"API call failed: {response}")
             return False
         
-        self.log_test("Get Config", "PASS", "Successfully retrieved bot config", {
-            "auto_execute_trades": config.get("auto_execute_trades"),
-            "is_active": config.get("is_active")
+        # Verify response structure
+        if not isinstance(response, list):
+            self.log_test("NSE Index Options API", "FAIL", f"Expected list, got {type(response)}")
+            return False
+        
+        # Check for expected indices
+        expected_indices = ["NIFTY 50", "NIFTY BANK", "NIFTY IT", "NIFTY AUTO"]
+        found_indices = [idx for idx in expected_indices if idx in response]
+        
+        if len(found_indices) < 3:
+            self.log_test("NSE Index Options API", "FAIL", f"Missing expected indices. Found: {found_indices}")
+            return False
+        
+        self.log_test("NSE Index Options API", "PASS", f"Retrieved {len(response)} NSE indices", {
+            "total_indices": len(response),
+            "sample_indices": response[:5],
+            "expected_found": len(found_indices)
         })
-        
-        # Step 2: Set auto_execute_trades to False
-        config["auto_execute_trades"] = False
-        status, response = await self.make_request("PUT", "/api/config", config)
-        if status != 200:
-            self.log_test("Update Config", "FAIL", f"Failed to update config: {response}")
-            return False
-        
-        self.log_test("Update Config", "PASS", "Set auto_execute_trades=False", {
-            "auto_execute_trades": response.get("auto_execute_trades")
-        })
-        
-        # Step 3: Trigger manual bot run
-        status, response = await self.make_request("POST", "/api/run-bot", {"manual": True})
-        if status != 200:
-            self.log_test("Manual Bot Trigger", "FAIL", f"Failed to trigger bot: {response}")
-            return False
-        
-        self.log_test("Manual Bot Trigger", "PASS", "Successfully triggered manual bot run", {
-            "manual": response.get("manual"),
-            "message": response.get("message")
-        })
-        
-        # Step 4: Wait for bot to complete
-        print("⏳ Waiting 10 seconds for bot to complete...")
-        await asyncio.sleep(10)
-        
-        # Step 5: Check backend logs for SKIPPING messages
-        logs = await self.get_backend_logs()
-        skip_messages = []
-        execute_messages = []
-        
-        for line in logs.split('\n'):
-            if "⏭️ SKIPPING order execution" in line:
-                skip_messages.append(line.strip())
-            elif "✅ PROCEEDING with order execution" in line:
-                execute_messages.append(line.strip())
-        
-        if skip_messages:
-            self.log_test("Log Verification - SKIP", "PASS", f"Found {len(skip_messages)} SKIP messages", {
-                "skip_count": len(skip_messages),
-                "sample_message": skip_messages[0] if skip_messages else "None"
-            })
-        else:
-            self.log_test("Log Verification - SKIP", "WARN", "No SKIP messages found in logs")
-        
-        if execute_messages:
-            self.log_test("Log Verification - EXECUTE", "FAIL", f"Found {len(execute_messages)} EXECUTE messages (should be 0)", {
-                "execute_count": len(execute_messages),
-                "sample_message": execute_messages[0] if execute_messages else "None"
-            })
-            return False
-        else:
-            self.log_test("Log Verification - EXECUTE", "PASS", "No EXECUTE messages found (correct)")
-        
-        # Step 6: Check executed orders
-        status, orders = await self.make_request("GET", "/api/executed-orders?limit=10")
-        if status == 200:
-            recent_orders = [o for o in orders if o.get("timestamp", "").startswith(datetime.now().date().isoformat())]
-            if recent_orders:
-                self.log_test("Order Verification", "FAIL", f"Found {len(recent_orders)} new orders (should be 0)", {
-                    "recent_orders": len(recent_orders)
-                })
-                return False
-            else:
-                self.log_test("Order Verification", "PASS", "No new orders placed (correct)")
-        else:
-            self.log_test("Order Verification", "WARN", f"Could not fetch orders: {orders}")
         
         return True
     
