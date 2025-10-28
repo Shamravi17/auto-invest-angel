@@ -565,8 +565,10 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Fix auto_execute_trades flag to prevent order execution when disabled"
-    - "Market status check should abort automatic runs FIRST if market closed"
+    - "Ensure ALL LLM calls include market data (Phase 1)"
+    - "NSE Index Data Service implementation (Phase 2)"
+    - "Watchlist UI - Display Instrument Type & Proxy Index (Phase 2)"
+    - "NSE API Logs Tab (Phase 2)"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -574,29 +576,39 @@ test_plan:
 agent_communication:
   - agent: "main"
     message: |
-      ✅ ALL ISSUES FIXED AND VERIFIED
-      ==================================
+      ✅ PHASE 1 & PHASE 2 IMPLEMENTATION COMPLETE
+      ================================================
       
-      1. auto_execute_trades flag behavior: ✅ WORKING
-         - Flag correctly controls order placement for BOTH manual and automatic triggers
-         - Comprehensive logging added for debugging
-         - Verified with actual test runs
+      PHASE 1: Market Data in ALL LLM Calls
+      - ✅ Updated SELL action prompt to include market data
+      - ✅ Updated BUY action prompt to include market data
+      - ✅ Updated generic action handler to include market data
+      - ✅ All prompts now consistently receive: technical indicators, index valuation, NSE data, market sentiment
       
-      2. Market status check for automatic runs: ✅ WORKING
-         - Market check happens FIRST (before config loading)
-         - Bot immediately aborts if market is closed (automatic runs only)
-         - Manual triggers correctly bypass market check
-         - Fixed is_market_open() to handle "open" OR "normal" status
-         - Verified with actual test runs
+      PHASE 2: NSE Index Data Service
+      Backend:
+      - ✅ Added instrument_type & proxy_index fields to WatchlistItem model
+      - ✅ Created NSEAPILog model for request/response tracking
+      - ✅ Implemented fetch_nse_index_data() with proper NSE headers
+      - ✅ All NSE API calls logged to database (success/failure)
+      - ✅ Integrated NSE data into get_llm_decision() for all action types
+      - ✅ Bot fetches NSE data when proxy_index is mapped
+      - ✅ API endpoints: /api/nse-api-logs, /api/nse-index-options
       
-      3. LLM calls during manual runs: ✅ FIXED
-         - Root cause: NoneType formatting error in prompts
-         - Fixed by adding explicit None checks for all numeric fields
-         - Verified: LLM calls working, responses received and parsed correctly
+      Frontend:
+      - ✅ Watchlist display shows Instrument Type and Proxy Index
+      - ✅ Edit dialog has dropdowns for both fields
+      - ✅ NSE index options dropdown with 23 indices
+      - ✅ Added "NSE API Logs" tab with detailed request/response view
+      - ✅ Success/Failure status display with data breakdown
       
-      4. Market Days tab sorting: ✅ FIXED
-         - Changed to sort by timestamp (descending)
-         - Latest entries now appear first
-         - Verified with UI screenshot
+      READY FOR TESTING:
+      - Backend API endpoints functional
+      - Frontend builds successfully
+      - All services restarted
       
-      All critical functionality restored and working correctly!
+      NEXT STEP: Call deep_testing_backend_v2 to test:
+      1. Market data in LLM prompts
+      2. NSE API integration
+      3. Watchlist CRUD with new fields
+      4. NSE logs endpoint
