@@ -103,18 +103,26 @@
 #====================================================================================================
 
 user_problem_statement: |
-  User reported the following issues:
-  1. ✅ FIXED: auto_execute_trades flag not being respected - bot executes orders even when flag is False
-  2. ✅ FIXED: Automatic bot runs should check market status FIRST and abort if market is closed
-  3. ✅ FIXED: LLM calls not being made during manual bot runs (NoneType formatting error)
-  4. ✅ FIXED: Market Days tab should show latest entries first
-  5. ✅ FIXED: Add execution status to distinguish skipped orders due to auto_execute_trades flag
-  6. ✅ IMPLEMENTED: Add ISIN numbers (fetched from Angel One) to all LLM calls for better analysis
+  CURRENT IMPLEMENTATION (Phase 1 & Phase 2):
+  1. ✅ Phase 1: Fixed market data integration for ALL LLM calls (SIP, BUY, SELL, RE-ENTRY)
+     - All prompts now include technical indicators, index valuation, and market sentiment
+     - Only available data fields are sent to LLM
+  
+  2. ⏳ Phase 2: NSE Index Data Service & Proxy Mapping (IMPLEMENTED - NEEDS TESTING)
+     - Added instrument_type (ETF/Equity) and proxy_index fields to WatchlistItem model
+     - Created NSE API service to fetch live index data (PE, PB, divYield, last, percentChange)
+     - All NSE API calls are logged with full request/response details
+     - LLM prompts enriched with NSE index data when proxy_index is mapped
+     - Frontend: Added Instrument Type and Proxy Index to watchlist display and edit dialog
+     - Frontend: Added "NSE API Logs" tab to view request/response history
   
   Previous resolved issues:
-  - Portfolio analysis and LLM logging (resolved)
-  - Angel One credentials in database with encryption (resolved)
-  - IST timestamp format (resolved)
+  - auto_execute_trades flag (resolved)
+  - Market status checks (resolved)
+  - LLM NoneType formatting (resolved)
+  - Market Days sorting (resolved)
+  - Execution status tracking (resolved)
+  - ISIN integration (resolved)
 
 backend:
   - task: "Fix auto_execute_trades flag to prevent order execution when disabled"
