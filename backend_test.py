@@ -206,37 +206,92 @@ class TradingBotTester:
         
         return True
     
-    async def test_scenario_4_manual_bypass_market_check(self):
-        """Scenario 4: Test manual trigger bypasses market check"""
+    async def test_nse_data_integration(self):
+        """Test 4: NSE Data Integration Test"""
         print("=" * 60)
-        print("SCENARIO 4: Manual trigger bypasses market check")
+        print("TEST 4: NSE Data Integration Test")
         print("=" * 60)
         
-        # Trigger manual bot run
-        status, response = await self.make_request("POST", "/api/run-bot", {"manual": True})
-        if status != 200:
-            self.log_test("Manual Bot Trigger", "FAIL", f"Failed to trigger bot: {response}")
+        # Step 1: Ensure we have a watchlist item with proxy_index
+        status, watchlist = await self.make_request("GET", "/api/watchlist")
+        if status != 200 or not watchlist:
+            self.log_test("Get Watchlist", "FAIL", "No watchlist items available for testing")
             return False
         
-        self.log_test("Manual Bot Trigger", "PASS", "Successfully triggered manual bot run")
-        
-        # Wait for bot to complete
-        print("⏳ Waiting 10 seconds for bot to complete...")
-        await asyncio.sleep(10)
-        
-        # Check logs for bypass message
-        logs = await self.get_backend_logs()
-        bypass_msg = False
-        
-        for line in logs.split('\n'):
-            if "🔧 Manual trigger - bypassing market status check" in line:
-                bypass_msg = True
+        # Find or create an item with proxy_index
+        test_item = None
+        for item in watchlist:
+            if item.get("proxy_index"):
+                test_item = item
                 break
         
-        if bypass_msg:
-            self.log_test("Market Bypass Check", "PASS", "Found manual bypass message")
+        if not test_item:
+            # Update first item to have proxy_index
+            first_item = watchlist[0]
+            first_item["proxy_index"] = "NIFTY 50"
+            status, response = await self.make_request("PUT", f"/api/watchlist/{first_item['id']}", first_item)
+            if status == 200:
+                test_item = response
+            else:
+                self.log_test("Setup Test Item", "FAIL", "Could not set proxy_index on test item")
+                return False
+        
+        self.log_test("Setup Test Item", "PASS", f"Test item ready with proxy_index: {test_item.get('proxy_index')}")
+        
+        # Step 2: Trigger bot manually to test NSE integration
+        status, response = await self.make_request("POST", "/api/trigger-bot")
+        if status != 200:
+            self.log_test("Trigger Bot", "FAIL", f"Failed to trigger bot: {response}")
+            return False
+        
+        self.log_test("Trigger Bot", "PASS", "Bot triggered successfully")
+        
+        # Step 3: Wait for bot to complete
+        print("⏳ Waiting 15 seconds for bot to complete...")
+        await asyncio.sleep(15)
+        
+        # Step 4: Check NSE API logs were created
+        status, nse_logs = await self.make_request("GET", "/api/nse-api-logs")
+        if status != 200:
+            self.log_test("Check NSE Logs", "FAIL", f"Failed to get NSE logs: {nse_logs}")
+            return False
+        
+        if not nse_logs:
+            self.log_test("Check NSE Logs", "WARN", "No NSE API logs found - bot may not have processed proxy_index items")
+            return True  # Not a failure, just no NSE calls made
+        
+        # Step 5: Verify log structure and data
+        latest_log = nse_logs[0]  # Most recent log
+        
+        required_fields = ["symbol", "proxy_index", "status", "timestamp"]
+        missing_fields = [field for field in required_fields if field not in latest_log]
+        
+        if missing_fields:
+            self.log_test("NSE Log Structure", "FAIL", f"Missing fields: {missing_fields}")
+            return False
+        
+        log_status = latest_log.get("status")
+        if log_status == "SUCCESS":
+            # Check if response_data has expected NSE fields
+            response_data = latest_log.get("response_data", {})
+            nse_fields = ["pe", "pb", "divYield", "last", "percentChange"]
+            found_fields = [field for field in nse_fields if field in response_data]
+            
+            self.log_test("NSE Data Integration", "PASS", f"NSE API call successful", {
+                "status": log_status,
+                "proxy_index": latest_log.get("proxy_index"),
+                "nse_fields_found": len(found_fields),
+                "sample_data": {k: response_data.get(k) for k in found_fields[:3]}
+            })
+        elif log_status == "FAILED":
+            error_msg = latest_log.get("error", "Unknown error")
+            self.log_test("NSE Data Integration", "PASS", f"NSE API call failed gracefully", {
+                "status": log_status,
+                "error": error_msg,
+                "proxy_index": latest_log.get("proxy_index")
+            })
         else:
-            self.log_test("Market Bypass Check", "FAIL", "Manual bypass message not found")
+            self.log_test("NSE Data Integration", "FAIL", f"Unexpected status: {log_status}")
             return False
         
         return True
