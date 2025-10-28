@@ -139,6 +139,10 @@ class WatchlistItem(BaseModel):
     exit_amount: Optional[float] = None  # Total amount from exit (reserved for re-entry)
     exit_date: Optional[str] = None  # Date when position was exited
     exit_quantity: Optional[int] = None  # Quantity that was sold during exit
+    
+    # NSE Index Data fields
+    instrument_type: Optional[str] = None  # ETF or Equity
+    proxy_index: Optional[str] = None  # Optional mapping to NSE index (e.g., "NIFTY 50")
 
 class ExecutedOrder(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
