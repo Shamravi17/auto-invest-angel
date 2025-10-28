@@ -900,6 +900,47 @@ function App() {
                 </DialogHeader>
                 {editingItem && (
                   <div className="space-y-6 pt-4 pb-4">
+                    {/* Instrument Type */}
+                    <div className="space-y-2">
+                      <Label className="font-semibold">Instrument Type</Label>
+                      <Select
+                        value={editingItem.instrument_type || ''}
+                        onValueChange={(value) => setEditingItem({ ...editingItem, instrument_type: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select instrument type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ETF">ETF</SelectItem>
+                          <SelectItem value="Equity">Equity</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Proxy Index */}
+                    <div className="space-y-2">
+                      <Label className="font-semibold">Proxy Index (Optional)</Label>
+                      <Select
+                        value={editingItem.proxy_index || ''}
+                        onValueChange={(value) => setEditingItem({ ...editingItem, proxy_index: value === 'none' ? null : value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Map to NSE index (optional)" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[300px]">
+                          <SelectItem value="none">None</SelectItem>
+                          {nseIndexOptions.map(idx => (
+                            <SelectItem key={idx} value={idx}>{idx}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-slate-500">
+                        When mapped, bot will fetch live NSE index data (PE, PB, etc.) for LLM analysis
+                      </p>
+                    </div>
+
+                    <Separator />
+
                     {/* Action Selection */}
                     <div className="space-y-2">
                       <Label className="font-semibold">Action</Label>
