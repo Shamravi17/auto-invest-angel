@@ -231,13 +231,14 @@ class MarketStateLog(BaseModel):
     bot_executed: bool  # Whether bot ran on this day
     reason: Optional[str] = None  # Why bot didn't run (if applicable)
 
-class NSEAPILog(BaseModel):
+class EODHDAPILog(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     timestamp: str = Field(default_factory=get_ist_timestamp)
-    symbol: str  # The watchlist symbol that triggered this call
-    proxy_index: str  # The NSE index being fetched (e.g., "NIFTY 50")
+    symbol: str  # The watchlist symbol
+    exchange_symbol: str  # Symbol with exchange suffix (e.g., RELIANCE.NSE)
+    data_type: str  # "fundamentals" or "technical"
+    indicator: Optional[str] = None  # For technical: RSI, MACD, etc.
     request_url: str
-    request_headers: Optional[Dict[str, Any]] = None
     response_data: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
     status: str  # "SUCCESS" or "FAILED"
