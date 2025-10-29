@@ -1890,6 +1890,8 @@ async def run_trading_bot(manual_trigger: bool = False):
                     
                     # Fetch EODHD data for proxy index if mapped
                     proxy_index = item.get('proxy_index')
+                    logger.info(f"   Checking proxy_index for {symbol}: {proxy_index}")
+                    
                     if proxy_index and proxy_index.strip():
                         logger.info(f"📊 Proxy index mapped: {proxy_index}")
                         logger.info(f"   Fetching EODHD data for index...")
