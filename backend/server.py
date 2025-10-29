@@ -1283,7 +1283,7 @@ You are a stock market analyst. Analyze this stock for SIP (Systematic Investmen
 **AVAILABLE BALANCE**: ₹{available_balance:.2f}
 **TOTAL SIP STOCKS IN WATCHLIST**: {total_sip_count} stocks (including this one)
 **BALANCE PER SIP STOCK**: ₹{(available_balance / total_sip_count) if total_sip_count > 0 else 0:.2f} (if divided equally)
-{tech_info}{index_info}{nse_info}{trend_info}
+{tech_info}{fundamentals_info}
 
 **USER'S ANALYSIS PARAMETERS**:
 {config.analysis_parameters}
@@ -1375,7 +1375,7 @@ You are a stock market analyst. Analyze whether to sell this holding.
 **INVESTMENT**: ₹{investment:.2f}
 **CURRENT VALUE**: ₹{current_value:.2f}
 **P&L**: ₹{pnl:.2f} ({pnl_pct:.2f}%)
-{tech_info}{index_info}{nse_info}{trend_info}
+{tech_info}{fundamentals_info}
 
 **USER'S ANALYSIS PARAMETERS**:
 {config.analysis_parameters}
@@ -1410,7 +1410,7 @@ You are a stock market analyst. Analyze this stock for BUY action.
 **PORTFOLIO CONTEXT**:
 - Current Quantity: {quantity}
 - Avg Price: ₹{avg_price:.2f}
-{tech_info}{index_info}{nse_info}{trend_info}
+{tech_info}{fundamentals_info}
 
 **USER'S ANALYSIS PARAMETERS**:
 {config.analysis_parameters}
@@ -1436,7 +1436,7 @@ You are a stock market analyst. Analyze this stock for {action.upper()} action.
 **STOCK**: {symbol}{isin_info}
 **CURRENT PRICE**: ₹{ltp:.2f}
 **PORTFOLIO CONTEXT**: Quantity: {quantity}, Avg Price: ₹{avg_price:.2f}
-{tech_info}{index_info}{nse_info}{trend_info}
+{tech_info}{fundamentals_info}
 
 **USER'S ANALYSIS PARAMETERS**:
 {config.analysis_parameters}
