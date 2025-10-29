@@ -1850,8 +1850,11 @@ async def run_trading_bot(manual_trigger: bool = False):
                         if exchange_info in ['NSE', 'BSE']:
                             exchange = exchange_info
                     
+                    # Clean symbol - remove -EQ suffix for EODHD
+                    clean_symbol = symbol.replace('-EQ', '').replace('-eq', '')
+                    
                     # Fetch EODHD data
-                    eodhd_data = await fetch_eodhd_data(symbol, exchange, eodhd_api_key)
+                    eodhd_data = await fetch_eodhd_data(clean_symbol, exchange, eodhd_api_key)
                     eodhd_fundamentals = eodhd_data.get('fundamentals')
                     eodhd_technical = eodhd_data.get('technical')
                     
