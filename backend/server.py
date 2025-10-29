@@ -2180,8 +2180,8 @@ async def get_performance_summary():
 
 @app.get("/api/nse-index-options")
 async def get_nse_index_options():
-    """Get list of available NSE index names for proxy_index mapping"""
-    return {"indices": NSE_INDEX_OPTIONS}
+    """Get list of available NSE index names for proxy_index mapping - deprecated"""
+    return {"indices": []}
 
 @app.get("/api/llm-logs")
 async def get_llm_logs(limit: int = 50):
