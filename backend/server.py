@@ -1830,48 +1830,42 @@ async def run_trading_bot(manual_trigger: bool = False):
                 }
                 isin = None
             
-            # Fetch enhanced market data for LLM
-            tech_indicators = None
-            index_valuation = None
-            market_trend = None
+            # Fetch EODHD market data (fundamentals + technical)
+            eodhd_fundamentals = None
+            eodhd_technical = None
             
-            if market_data_service:
+            # Get EODHD API key from credentials
+            creds_doc = await db.credentials.find_one({"_id": "main"})
+            eodhd_api_key = None
+            if creds_doc and creds_doc.get('eodhd_api_key'):
+                eodhd_api_key = decrypt_value(creds_doc['eodhd_api_key'])
+            
+            if eodhd_api_key:
                 try:
-                    # Fetch technical indicators
-                    tech_indicators = await market_data_service.get_technical_indicators(symbol)
-                    logger.info(f"Fetched technical indicators for {symbol}")
+                    # Determine exchange from holding or use NSE as default
+                    exchange = "NSE"
+                    if holding:
+                        # Angel One might have exchange info in symbol or separately
+                        exchange_info = holding.get('exchange', 'NSE')
+                        if exchange_info in ['NSE', 'BSE']:
+                            exchange = exchange_info
                     
-                    # Fetch index valuation (for ETFs)
-                    # TODO: Add proxy_index mapping logic
-                    # For now, use NIFTY 50 as default for all stocks
-                    index_valuation = await market_data_service.get_index_valuation("NIFTY 50")
-                    logger.info(f"Fetched index valuation")
-                    
-                    # Fetch market trend
-                    market_trend = await market_data_service.get_market_trend()
-                    logger.info(f"Fetched market trend")
+                    # Fetch EODHD data
+                    eodhd_data = await fetch_eodhd_data(symbol, exchange, eodhd_api_key)
+                    eodhd_fundamentals = eodhd_data.get('fundamentals')
+                    eodhd_technical = eodhd_data.get('technical')
                     
                 except Exception as e:
-                    logger.warning(f"Error fetching market data: {e}")
+                    logger.warning(f"Error fetching EODHD data for {symbol}: {e}")
+            else:
+                logger.warning(f"⚠️ EODHD API key not configured - skipping market data fetch")
             
-            # Fetch NSE Index Data if proxy_index is mapped
-            nse_index_data = None
-            proxy_index = item.get('proxy_index')
-            if proxy_index:
-                logger.info(f"🔍 Proxy index mapped for {symbol}: {proxy_index}")
-                logger.info(f"   Fetching live NSE data...")
-                nse_index_data = await fetch_nse_index_data(proxy_index, symbol)
-                if nse_index_data:
-                    logger.info(f"   ✅ NSE data fetched successfully")
-                else:
-                    logger.warning(f"   ⚠️ NSE data fetch failed - continuing without NSE data")
-            
-            # Get LLM decision with ISIN, adjusted available balance, market data, and NSE data
+            # Get LLM decision with ISIN, adjusted available balance, and EODHD data
             llm_result = await get_llm_decision(
                 symbol, action, market_data, config, item, 
                 {"holdings": portfolio['holdings'], "available_cash": available_balance}, 
                 action_counts.get('sip', 0), isin,
-                tech_indicators, index_valuation, market_trend, nse_index_data
+                eodhd_technical, eodhd_fundamentals
             )
             
             # Log analysis
