@@ -1822,8 +1822,13 @@ async def run_trading_bot(manual_trigger: bool = False):
             creds_doc = await db.credentials.find_one({"_id": "main"})
             logger.info(f"   Credentials document found: {creds_doc is not None}")
             if creds_doc:
-                logger.info(f"   Fields in creds: {list(creds_doc.keys())}")
-                logger.info(f"   Has eodhd_api_key: {'eodhd_api_key' in creds_doc}")
+                fields = [k for k in creds_doc.keys() if k != '_id']
+                logger.info(f"   Fields in creds: {fields}")
+                has_key = 'eodhd_api_key' in creds_doc
+                logger.info(f"   Has eodhd_api_key: {has_key}")
+                if has_key:
+                    val = creds_doc.get('eodhd_api_key')
+                    logger.info(f"   Value type: {type(val)}, length: {len(val) if val else 0}")
             
             eodhd_api_key = None
             if creds_doc and creds_doc.get('eodhd_api_key'):
