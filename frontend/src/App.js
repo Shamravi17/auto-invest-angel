@@ -67,7 +67,7 @@ function App() {
 
   const fetchData = async () => {
     try {
-      const [statusRes, configRes, watchlistRes, logsRes, portfolioRes, analysesRes, credsRes, llmLogsRes, ordersRes, marketLogsRes, nseLogsRes, nseIndexRes] = await Promise.all([
+      const [statusRes, configRes, watchlistRes, logsRes, portfolioRes, analysesRes, credsRes, llmLogsRes, ordersRes, marketLogsRes, eodhdLogsRes] = await Promise.all([
         axios.get(`${API}/status`),
         axios.get(`${API}/config`),
         axios.get(`${API}/watchlist`),
@@ -78,8 +78,7 @@ function App() {
         axios.get(`${API}/llm-logs?limit=50`),
         axios.get(`${API}/executed-orders?limit=100`),
         axios.get(`${API}/market-state-logs?limit=30`),
-        axios.get(`${API}/nse-api-logs?limit=50`),
-        axios.get(`${API}/nse-index-options`)
+        axios.get(`${API}/eodhd-api-logs?limit=100`)
       ]);
       
       setStatus(statusRes.data);
@@ -92,8 +91,7 @@ function App() {
       setLlmLogs(llmLogsRes.data);
       setExecutedOrders(ordersRes.data);
       setMarketStateLogs(marketLogsRes.data);
-      setNseApiLogs(nseLogsRes.data);
-      setNseIndexOptions(nseIndexRes.data.indices || []);
+      setEodhdApiLogs(eodhdLogsRes.data);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching data:', error);
