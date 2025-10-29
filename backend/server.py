@@ -767,162 +767,214 @@ async def delete_watchlist_item(item_id: str):
     raise HTTPException(status_code=404, detail="Item not found")
 
 
-# ===== NSE INDEX DATA SERVICE =====
+# ===== EODHD FINANCIAL API SERVICE =====
 import aiohttp
 import time
 
-async def fetch_nse_index_data(proxy_index: str, symbol: str, retry_count: int = 1) -> Optional[Dict]:
+async def fetch_eodhd_fundamentals(symbol: str, exchange: str, api_key: str) -> Optional[Dict]:
     """
-    Fetch live NSE index valuation data for a given proxy index
-    Uses session warm-up approach to avoid 403 errors
+    Fetch fundamental data from EODHD API
     
     Args:
-        proxy_index: NSE index name (e.g., "NIFTY 50", "NIFTY BANK")
-        symbol: Watchlist symbol that triggered this call (for logging)
-        retry_count: Number of retries on failure (default: 1)
+        symbol: Stock symbol (e.g., "RELIANCE")
+        exchange: Exchange (NSE or BSE)
+        api_key: EODHD API key
     
     Returns:
-        Dictionary with index data: pe, pb, divYield, last, percentChange
-        Returns None if API call fails
-        
-    Note: NSE blocks datacenter IPs. This works best from residential IPs or during market hours.
+        Dictionary with fundamental data or None if failed
     """
     start_time = time.time()
-    url = "https://www.nseindia.com/api/allIndices"
-    homepage = "https://www.nseindia.com/"
+    exchange_symbol = f"{symbol}.{exchange}"
+    url = f"{EODHD_BASE_URL}/fundamentals/{exchange_symbol}"
     
-    # NSE requires specific headers to avoid blocking
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-        'Accept': 'application/json',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Connection': 'keep-alive',
-        'Referer': 'https://www.nseindia.com/',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
+    params = {
+        'api_token': api_key,
+        'fmt': 'json'
     }
     
-    log_entry = NSEAPILog(
+    log_entry = EODHDAPILog(
         symbol=symbol,
-        proxy_index=proxy_index,
+        exchange_symbol=exchange_symbol,
+        data_type="fundamentals",
         request_url=url,
-        request_headers=headers,
         status="PENDING"
     )
     
-    for attempt in range(retry_count + 1):
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=15)) as response:
+                execution_time = (time.time() - start_time) * 1000
+                
+                if response.status == 200:
+                    data = await response.json()
+                    
+                    # Extract key fundamental metrics
+                    highlights = data.get('Highlights', {})
+                    valuation = data.get('Valuation', {})
+                    financials = data.get('Financials', {})
+                    
+                    fundamentals = {
+                        'pe_ratio': highlights.get('PERatio'),
+                        'pb_ratio': highlights.get('PriceBookMRQ'),
+                        'dividend_yield': highlights.get('DividendYield'),
+                        'roe': highlights.get('ReturnOnEquityTTM'),
+                        'market_cap': highlights.get('MarketCapitalization'),
+                        'eps': highlights.get('EarningsShare'),
+                        'peg_ratio': valuation.get('PEGRatio'),
+                        'ebitda': highlights.get('EBITDA'),
+                        'week_52_high': highlights.get('52WeekHigh'),
+                        'week_52_low': highlights.get('52WeekLow'),
+                        'price_sales_ttm': valuation.get('PriceSalesTTM')
+                    }
+                    
+                    log_entry.response_data = fundamentals
+                    log_entry.status = "SUCCESS"
+                    log_entry.execution_time_ms = execution_time
+                    await db.eodhd_api_logs.insert_one(log_entry.model_dump())
+                    
+                    logger.info(f"✅ EODHD Fundamentals: {exchange_symbol} PE={fundamentals.get('pe_ratio')}")
+                    return fundamentals
+                else:
+                    error_msg = f"EODHD API status {response.status}"
+                    text = await response.text()
+                    log_entry.error = f"{error_msg}: {text[:200]}"
+                    log_entry.status = "FAILED"
+                    log_entry.execution_time_ms = execution_time
+                    await db.eodhd_api_logs.insert_one(log_entry.model_dump())
+                    logger.warning(f"⚠️ {error_msg} for {exchange_symbol}")
+                    return None
+                    
+    except Exception as e:
+        error_msg = f"EODHD error: {str(e)}"
+        log_entry.error = error_msg
+        log_entry.status = "FAILED"
+        log_entry.execution_time_ms = (time.time() - start_time) * 1000
+        await db.eodhd_api_logs.insert_one(log_entry.model_dump())
+        logger.error(f"❌ {error_msg} for {exchange_symbol}")
+        return None
+
+async def fetch_eodhd_technical(symbol: str, exchange: str, api_key: str) -> Optional[Dict]:
+    """
+    Fetch technical indicators from EODHD API
+    
+    Args:
+        symbol: Stock symbol (e.g., "RELIANCE")
+        exchange: Exchange (NSE or BSE)
+        api_key: EODHD API key
+    
+    Returns:
+        Dictionary with technical indicators or None if failed
+    """
+    start_time = time.time()
+    exchange_symbol = f"{symbol}.{exchange}"
+    
+    technical_data = {}
+    indicators = {
+        'rsi': {'function': 'rsi', 'period': 14},
+        'macd': {'function': 'macd', 'fast_period': 12, 'slow_period': 26, 'signal_period': 9},
+        'adx': {'function': 'adx', 'period': 14},
+        'atr': {'function': 'atr', 'period': 14},
+        'mfi': {'function': 'mfi', 'period': 14},
+    }
+    
+    for indicator_name, params in indicators.items():
         try:
-            # Create session with SSL disabled for better compatibility
-            connector = aiohttp.TCPConnector(ssl=False)
-            async with aiohttp.ClientSession(connector=connector) as session:
-                # Step 1: Visit homepage to get cookies
-                if attempt == 0:
-                    logger.info(f"🔄 NSE: Warming up session for {proxy_index}...")
-                    
-                async with session.get(homepage, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as homepage_resp:
-                    homepage_status = homepage_resp.status
-                    if homepage_status == 403:
-                        error_msg = "NSE blocked (403) - Datacenter IP. Bot continues without NSE data."
-                        logger.warning(f"⚠️ {error_msg}")
-                        if attempt < retry_count:
-                            await asyncio.sleep(2 ** attempt)  # Exponential backoff
-                            continue
-                        else:
-                            # Last attempt failed
-                            log_entry.error = f"{error_msg} (Tried {retry_count + 1} times)"
-                            log_entry.status = "FAILED"
-                            log_entry.execution_time_ms = (time.time() - start_time) * 1000
-                            await db.nse_api_logs.insert_one(log_entry.model_dump())
-                            return None
-                    elif homepage_status != 200:
-                        logger.warning(f"NSE homepage: status {homepage_status}")
-                
-                # Step 2: Small delay for cookies
-                await asyncio.sleep(1)
-                
-                # Step 3: Call API
-                if attempt == 0:
-                    logger.info(f"📊 NSE API: Fetching {proxy_index}...")
-                    
-                async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=15)) as response:
+            url = f"{EODHD_BASE_URL}/technical/{exchange_symbol}"
+            
+            api_params = {
+                'api_token': api_key,
+                'function': params['function'],
+                'period': params.get('period', 14)
+            }
+            
+            # Add MACD specific parameters
+            if indicator_name == 'macd':
+                api_params['fast_period'] = params['fast_period']
+                api_params['slow_period'] = params['slow_period']
+                api_params['signal_period'] = params['signal_period']
+            
+            log_entry = EODHDAPILog(
+                symbol=symbol,
+                exchange_symbol=exchange_symbol,
+                data_type="technical",
+                indicator=indicator_name.upper(),
+                request_url=url,
+                status="PENDING"
+            )
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, params=api_params, timeout=aiohttp.ClientTimeout(total=10)) as response:
                     execution_time = (time.time() - start_time) * 1000
                     
                     if response.status == 200:
                         data = await response.json()
                         
-                        # Find matching index
-                        index_data = None
-                        for index_item in data.get('data', []):
-                            index_name = index_item.get('index', '').upper()
-                            if proxy_index.upper() in index_name or index_name in proxy_index.upper():
-                                index_data = {
-                                    'pe': index_item.get('pe'),
-                                    'pb': index_item.get('pb'),
-                                    'divYield': index_item.get('divYield'),
-                                    'last': index_item.get('last'),
-                                    'percentChange': index_item.get('percentChange')
-                                }
-                                break
+                        # Get latest value
+                        if data and len(data) > 0:
+                            latest = data[0]
+                            
+                            if indicator_name == 'rsi':
+                                technical_data['rsi_14'] = latest.get('rsi')
+                            elif indicator_name == 'macd':
+                                technical_data['macd'] = latest.get('macd')
+                                technical_data['macd_signal'] = latest.get('signal')
+                            elif indicator_name == 'adx':
+                                technical_data['adx_14'] = latest.get('adx')
+                            elif indicator_name == 'atr':
+                                technical_data['atr_14'] = latest.get('atr')
+                            elif indicator_name == 'mfi':
+                                technical_data['mfi_14'] = latest.get('mfi')
                         
-                        if index_data:
-                            log_entry.response_data = index_data
-                            log_entry.status = "SUCCESS"
-                            log_entry.execution_time_ms = execution_time
-                            await db.nse_api_logs.insert_one(log_entry.model_dump())
-                            logger.info(f"✅ NSE: {proxy_index} PE={index_data.get('pe')}, PB={index_data.get('pb')}")
-                            return index_data
-                        else:
-                            error_msg = f"Index '{proxy_index}' not found"
-                            log_entry.error = error_msg
-                            log_entry.status = "FAILED"
-                            log_entry.execution_time_ms = execution_time
-                            log_entry.response_data = {"available_indices": [idx.get('index') for idx in data.get('data', [])[:10]]}
-                            await db.nse_api_logs.insert_one(log_entry.model_dump())
-                            logger.warning(f"❌ {error_msg}")
-                            return None
-                    elif response.status == 403:
-                        error_msg = "NSE API 403 - IP blocked"
-                        if attempt < retry_count:
-                            logger.warning(f"⚠️ {error_msg}, retrying...")
-                            await asyncio.sleep(2 ** attempt)
-                            continue
-                        else:
-                            log_entry.error = f"{error_msg} (Tried {retry_count + 1} times)"
-                            log_entry.status = "FAILED"
-                            log_entry.execution_time_ms = execution_time
-                            await db.nse_api_logs.insert_one(log_entry.model_dump())
-                            logger.error(f"❌ {error_msg}")
-                            return None
+                        log_entry.response_data = data[0] if data else {}
+                        log_entry.status = "SUCCESS"
+                        log_entry.execution_time_ms = execution_time
+                        await db.eodhd_api_logs.insert_one(log_entry.model_dump())
                     else:
-                        error_msg = f"NSE API status {response.status}"
-                        log_entry.error = error_msg
+                        text = await response.text()
+                        log_entry.error = f"Status {response.status}: {text[:100]}"
                         log_entry.status = "FAILED"
                         log_entry.execution_time_ms = execution_time
-                        await db.nse_api_logs.insert_one(log_entry.model_dump())
-                        logger.error(f"❌ {error_msg}")
-                        return None
+                        await db.eodhd_api_logs.insert_one(log_entry.model_dump())
                         
-        except asyncio.TimeoutError:
-            error_msg = "NSE API timeout"
-            log_entry.error = error_msg
-            log_entry.status = "FAILED"
-            log_entry.execution_time_ms = (time.time() - start_time) * 1000
-            await db.nse_api_logs.insert_one(log_entry.model_dump())
-            logger.error(f"❌ {error_msg}")
-            return None
-            
         except Exception as e:
-            error_msg = f"NSE error: {str(e)}"
-            log_entry.error = error_msg
-            log_entry.status = "FAILED"
-            log_entry.execution_time_ms = (time.time() - start_time) * 1000
-            await db.nse_api_logs.insert_one(log_entry.model_dump())
-            logger.error(f"❌ {error_msg}")
-            return None
+            logger.warning(f"⚠️ EODHD {indicator_name.upper()} error for {exchange_symbol}: {str(e)}")
+            continue
     
-    # Should not reach here
-    return None
+    if technical_data:
+        logger.info(f"✅ EODHD Technical: {exchange_symbol} - {len(technical_data)} indicators fetched")
+        return technical_data
+    else:
+        logger.warning(f"⚠️ No technical data fetched for {exchange_symbol}")
+        return None
+
+async def fetch_eodhd_data(symbol: str, exchange: str, api_key: str) -> Dict:
+    """
+    Fetch both fundamental and technical data from EODHD
+    
+    Args:
+        symbol: Stock symbol
+        exchange: Exchange (NSE or BSE)
+        api_key: EODHD API key
+    
+    Returns:
+        Dictionary with 'fundamentals' and 'technical' keys
+    """
+    if not api_key:
+        logger.warning("⚠️ EODHD API key not configured")
+        return {'fundamentals': None, 'technical': None}
+    
+    logger.info(f"📊 Fetching EODHD data for {symbol}.{exchange}...")
+    
+    # Fetch both in parallel
+    fundamentals_task = fetch_eodhd_fundamentals(symbol, exchange, api_key)
+    technical_task = fetch_eodhd_technical(symbol, exchange, api_key)
+    
+    fundamentals, technical = await asyncio.gather(fundamentals_task, technical_task)
+    
+    return {
+        'fundamentals': fundamentals,
+        'technical': technical
+    }
 
 
 # ===== LLM DECISION LOGIC =====
