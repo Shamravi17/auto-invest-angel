@@ -926,7 +926,7 @@ function App() {
                         onValueChange={(value) => setEditingItem({ ...editingItem, proxy_index: value === 'none' ? null : value })}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Map to NSE index (optional)" />
+                          <SelectValue placeholder="Map to financial index (optional)" />
                         </SelectTrigger>
                         <SelectContent className="max-h-[300px]">
                           <SelectItem value="none">None</SelectItem>
