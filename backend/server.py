@@ -978,8 +978,8 @@ async def fetch_eodhd_data(symbol: str, exchange: str, api_key: str) -> Dict:
 
 
 # ===== LLM DECISION LOGIC =====
-async def get_llm_decision(symbol: str, action: str, market_data: Dict, config: BotConfig, item: Dict, portfolio: Dict = None, total_sip_count: int = 0, isin: str = None, tech_indicators: Dict = None, index_valuation: Dict = None, market_trend: Dict = None, nse_index_data: Dict = None) -> Dict:
-    """Get LLM decision for a trading action with enhanced market data"""
+async def get_llm_decision(symbol: str, action: str, market_data: Dict, config: BotConfig, item: Dict, portfolio: Dict = None, total_sip_count: int = 0, isin: str = None, eodhd_technical: Dict = None, eodhd_fundamentals: Dict = None) -> Dict:
+    """Get LLM decision for a trading action with EODHD market data"""
     try:
         # Get API key
         if config.llm_provider == "openai" and config.openai_api_key:
@@ -990,69 +990,52 @@ async def get_llm_decision(symbol: str, action: str, market_data: Dict, config: 
         # Build ISIN info string
         isin_info = f"\n**ISIN**: {isin}" if isin else ""
         
-        # Build Technical Indicators section
+        # Build Technical Indicators section from EODHD
         tech_info = ""
-        if tech_indicators:
+        if eodhd_technical:
             tech_parts = []
-            if tech_indicators.get('rsi_14'):
-                rsi = tech_indicators['rsi_14']
+            if eodhd_technical.get('rsi_14') is not None:
+                rsi = eodhd_technical['rsi_14']
                 rsi_signal = "OVERSOLD" if rsi < 30 else "OVERBOUGHT" if rsi > 70 else "NEUTRAL"
                 tech_parts.append(f"RSI(14): {rsi:.1f} ({rsi_signal})")
-            if tech_indicators.get('macd') is not None and tech_indicators.get('macd_signal'):
-                macd_trend = "BULLISH" if tech_indicators['macd'] > tech_indicators['macd_signal'] else "BEARISH"
-                tech_parts.append(f"MACD: {tech_indicators['macd']:.2f} / Signal: {tech_indicators['macd_signal']:.2f} ({macd_trend})")
-            if tech_indicators.get('adx_14'):
-                adx = tech_indicators['adx_14']
+            if eodhd_technical.get('macd') is not None and eodhd_technical.get('macd_signal') is not None:
+                macd_trend = "BULLISH" if eodhd_technical['macd'] > eodhd_technical['macd_signal'] else "BEARISH"
+                tech_parts.append(f"MACD: {eodhd_technical['macd']:.2f} / Signal: {eodhd_technical['macd_signal']:.2f} ({macd_trend})")
+            if eodhd_technical.get('adx_14') is not None:
+                adx = eodhd_technical['adx_14']
                 adx_strength = "STRONG TREND" if adx > 25 else "WEAK TREND"
                 tech_parts.append(f"ADX(14): {adx:.1f} ({adx_strength})")
-            if tech_indicators.get('atr_14'):
-                tech_parts.append(f"ATR(14): {tech_indicators['atr_14']:.2f} (Volatility measure)")
+            if eodhd_technical.get('atr_14') is not None:
+                tech_parts.append(f"ATR(14): {eodhd_technical['atr_14']:.2f} (Volatility measure)")
+            if eodhd_technical.get('mfi_14') is not None:
+                tech_parts.append(f"MFI(14): {eodhd_technical['mfi_14']:.1f} (Money Flow)")
             
             if tech_parts:
                 tech_info = "\n\n**TECHNICAL INDICATORS**:\n" + "\n".join([f"- {part}" for part in tech_parts])
         
-        # Build Index Valuation section (for ETFs - from market_data_service)
-        index_info = ""
-        if index_valuation and index_valuation.get('pe'):
-            index_parts = []
-            if index_valuation.get('pe'):
-                index_parts.append(f"P/E Ratio: {index_valuation['pe']:.2f}")
-            if index_valuation.get('pb'):
-                index_parts.append(f"P/B Ratio: {index_valuation['pb']:.2f}")
-            if index_valuation.get('div_yield'):
-                index_parts.append(f"Dividend Yield: {index_valuation['div_yield']:.2f}%")
-            if index_valuation.get('last_price'):
-                index_parts.append(f"Index Level: {index_valuation['last_price']:.2f}")
+        # Build Fundamentals section from EODHD
+        fundamentals_info = ""
+        if eodhd_fundamentals:
+            fund_parts = []
+            if eodhd_fundamentals.get('pe_ratio') is not None:
+                fund_parts.append(f"P/E Ratio: {eodhd_fundamentals['pe_ratio']:.2f}")
+            if eodhd_fundamentals.get('pb_ratio') is not None:
+                fund_parts.append(f"P/B Ratio: {eodhd_fundamentals['pb_ratio']:.2f}")
+            if eodhd_fundamentals.get('dividend_yield') is not None:
+                fund_parts.append(f"Dividend Yield: {eodhd_fundamentals['dividend_yield']:.2f}%")
+            if eodhd_fundamentals.get('roe') is not None:
+                fund_parts.append(f"ROE: {eodhd_fundamentals['roe']:.2f}%")
+            if eodhd_fundamentals.get('market_cap') is not None:
+                fund_parts.append(f"Market Cap: ₹{eodhd_fundamentals['market_cap']/10000000:.2f} Cr")
+            if eodhd_fundamentals.get('eps') is not None:
+                fund_parts.append(f"EPS: ₹{eodhd_fundamentals['eps']:.2f}")
+            if eodhd_fundamentals.get('peg_ratio') is not None:
+                fund_parts.append(f"PEG Ratio: {eodhd_fundamentals['peg_ratio']:.2f}")
+            if eodhd_fundamentals.get('week_52_high') is not None and eodhd_fundamentals.get('week_52_low') is not None:
+                fund_parts.append(f"52W Range: ₹{eodhd_fundamentals['week_52_low']:.2f} - ₹{eodhd_fundamentals['week_52_high']:.2f}")
             
-            if index_parts:
-                index_info = "\n\n**INDEX VALUATION** (Underlying benchmark):\n" + "\n".join([f"- {part}" for part in index_parts])
-        
-        # Build NSE Index Data section (from proxy mapping)
-        nse_info = ""
-        if nse_index_data:
-            nse_parts = []
-            proxy_name = item.get('proxy_index', 'Proxy Index')
-            if nse_index_data.get('pe'):
-                nse_parts.append(f"P/E Ratio: {nse_index_data['pe']:.2f}")
-            if nse_index_data.get('pb'):
-                nse_parts.append(f"P/B Ratio: {nse_index_data['pb']:.2f}")
-            if nse_index_data.get('divYield'):
-                nse_parts.append(f"Dividend Yield: {nse_index_data['divYield']:.2f}%")
-            if nse_index_data.get('last'):
-                nse_parts.append(f"Index Level: {nse_index_data['last']:.2f}")
-            if nse_index_data.get('percentChange'):
-                change_dir = "📈" if nse_index_data['percentChange'] > 0 else "📉"
-                nse_parts.append(f"Intraday Change: {change_dir} {nse_index_data['percentChange']:+.2f}%")
-            
-            if nse_parts:
-                nse_info = f"\n\n**NSE INDEX DATA** ({proxy_name} - Live):\n" + "\n".join([f"- {part}" for part in nse_parts])
-        
-        # Build Market Trend section
-        trend_info = ""
-        if market_trend:
-            trend = market_trend.get('trend', 'neutral').upper()
-            volatility = market_trend.get('volatility', 'medium').upper()
-            trend_info = f"\n\n**MARKET SENTIMENT**: {trend} | Volatility: {volatility}"
+            if fund_parts:
+                fundamentals_info = "\n\n**FUNDAMENTALS**:\n" + "\n".join([f"- {part}" for part in fund_parts])
         
         # Build prompt based on action
         if action == "sip":
