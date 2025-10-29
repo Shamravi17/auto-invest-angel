@@ -146,6 +146,7 @@ class Credentials(BaseModel):
     angel_password: Optional[str] = None
     angel_totp_secret: Optional[str] = None
     angel_mpin: Optional[str] = None
+    eodhd_api_key: Optional[str] = None  # EODHD Financial API key
     last_updated: str = Field(default_factory=get_ist_timestamp)
 
 class WatchlistItem(BaseModel):
