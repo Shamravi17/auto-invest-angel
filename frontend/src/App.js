@@ -1782,8 +1782,8 @@ function App() {
             </Card>
           </TabsContent>
 
-          {/* NSE API Logs Tab */}
-          <TabsContent value="nse-logs">
+          {/* EODHD API Logs Tab */}
+          <TabsContent value="eodhd-logs">
             <Card className="bg-white/90 backdrop-blur border-slate-200">
               <CardHeader>
                 <CardTitle>EODHD API Logs</CardTitle>
