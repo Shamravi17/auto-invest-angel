@@ -45,8 +45,7 @@ function App() {
   const [watchlistSort, setWatchlistSort] = useState('symbol'); // symbol, pnl, action
   const [executedOrders, setExecutedOrders] = useState([]);
   const [marketStateLogs, setMarketStateLogs] = useState([]);
-  const [nseApiLogs, setNseApiLogs] = useState([]);
-  const [nseIndexOptions, setNseIndexOptions] = useState([]);
+  const [eodhdApiLogs, setEodhdApiLogs] = useState([]);
 
   useEffect(() => {
     fetchData();
