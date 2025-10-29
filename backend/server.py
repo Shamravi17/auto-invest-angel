@@ -978,7 +978,7 @@ async def fetch_eodhd_data(symbol: str, exchange: str, api_key: str) -> Dict:
 
 
 # ===== LLM DECISION LOGIC =====
-async def get_llm_decision(symbol: str, action: str, market_data: Dict, config: BotConfig, item: Dict, portfolio: Dict = None, total_sip_count: int = 0, isin: str = None, eodhd_technical: Dict = None, eodhd_fundamentals: Dict = None) -> Dict:
+async def get_llm_decision(symbol: str, action: str, market_data: Dict, config: BotConfig, item: Dict, portfolio: Dict = None, total_sip_count: int = 0, isin: str = None, eodhd_technical: Dict = None, eodhd_fundamentals: Dict = None, proxy_index_data: Dict = None) -> Dict:
     """Get LLM decision for a trading action with EODHD market data"""
     try:
         # Get API key
@@ -1036,6 +1036,35 @@ async def get_llm_decision(symbol: str, action: str, market_data: Dict, config: 
             
             if fund_parts:
                 fundamentals_info = "\n\n**FUNDAMENTALS**:\n" + "\n".join([f"- {part}" for part in fund_parts])
+        
+        # Build Proxy Index Data section
+        proxy_info = ""
+        if proxy_index_data:
+            proxy_name = item.get('proxy_index', 'Benchmark Index')
+            proxy_fund = proxy_index_data.get('fundamentals')
+            proxy_tech = proxy_index_data.get('technical')
+            
+            if proxy_fund or proxy_tech:
+                proxy_parts = []
+                
+                # Add fundamentals
+                if proxy_fund:
+                    if proxy_fund.get('pe_ratio') is not None:
+                        proxy_parts.append(f"P/E: {proxy_fund['pe_ratio']:.2f}")
+                    if proxy_fund.get('pb_ratio') is not None:
+                        proxy_parts.append(f"P/B: {proxy_fund['pb_ratio']:.2f}")
+                    if proxy_fund.get('dividend_yield') is not None:
+                        proxy_parts.append(f"Div Yield: {proxy_fund['dividend_yield']:.2f}%")
+                
+                # Add technicals
+                if proxy_tech:
+                    if proxy_tech.get('rsi_14') is not None:
+                        rsi = proxy_tech['rsi_14']
+                        rsi_signal = "OVERSOLD" if rsi < 30 else "OVERBOUGHT" if rsi > 70 else "NEUTRAL"
+                        proxy_parts.append(f"RSI: {rsi:.1f} ({rsi_signal})")
+                
+                if proxy_parts:
+                    proxy_info = f"\n\n**BENCHMARK INDEX** ({proxy_name}):\n" + "\n".join([f"- {part}" for part in proxy_parts])
         
         # Build prompt based on action
         if action == "sip":
