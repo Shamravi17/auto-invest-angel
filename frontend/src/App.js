@@ -1309,6 +1309,22 @@ function App() {
                   </div>
                 </div>
 
+                <div className="border-t pt-4 mt-4">
+                  <h3 className="text-sm font-semibold text-slate-700 mb-3">EODHD Financial Data API</h3>
+                  <div className="space-y-2">
+                    <Label>EODHD API Key</Label>
+                    <Input
+                      type="text"
+                      placeholder="Enter EODHD API Key (for fundamentals & technical data)"
+                      value={tempCredentials?.eodhd_api_key || ''}
+                      onChange={(e) => updateTempCredentials({ eodhd_api_key: e.target.value })}
+                    />
+                    <p className="text-xs text-slate-500">
+                      Get your API key from <a href="https://eodhd.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">eodhd.com</a>
+                    </p>
+                  </div>
+                </div>
+
                 {credentialsChanged && (
                   <div className="flex justify-end">
                     <Button
