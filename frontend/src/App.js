@@ -930,13 +930,10 @@ function App() {
                         </SelectTrigger>
                         <SelectContent className="max-h-[300px]">
                           <SelectItem value="none">None</SelectItem>
-                          {nseIndexOptions.map(idx => (
-                            <SelectItem key={idx} value={idx}>{idx}</SelectItem>
-                          ))}
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-slate-500">
-                        When mapped, bot will fetch live NSE index data (PE, PB, etc.) for LLM analysis
+                        When mapped, bot will fetch live financial data for LLM analysis
                       </p>
                     </div>
 
