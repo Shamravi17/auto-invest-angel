@@ -921,19 +921,14 @@ function App() {
                     {/* Proxy Index */}
                     <div className="space-y-2">
                       <Label className="font-semibold">Proxy Index (Optional)</Label>
-                      <Select
+                      <Input
+                        type="text"
+                        placeholder="e.g., NIFTY 50, NIFTY BANK, ^NSEI"
                         value={editingItem.proxy_index || ''}
-                        onValueChange={(value) => setEditingItem({ ...editingItem, proxy_index: value === 'none' ? null : value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Map to financial index (optional)" />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[300px]">
-                          <SelectItem value="none">None</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        onChange={(e) => setEditingItem({ ...editingItem, proxy_index: e.target.value })}
+                      />
                       <p className="text-xs text-slate-500">
-                        When mapped, bot will fetch live financial data for LLM analysis
+                        Enter index name to fetch benchmark data (e.g., NIFTY 50, NIFTY BANK). Leave empty if not applicable.
                       </p>
                     </div>
 
