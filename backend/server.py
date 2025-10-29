@@ -1818,12 +1818,18 @@ async def run_trading_bot(manual_trigger: bool = False):
             eodhd_technical = None
             
             # Get EODHD API key from credentials
+            logger.info(f"🔑 Fetching EODHD API key from database for {symbol}...")
             creds_doc = await db.credentials.find_one({"_id": "main"})
+            logger.info(f"   Credentials document found: {creds_doc is not None}")
+            if creds_doc:
+                logger.info(f"   Fields in creds: {list(creds_doc.keys())}")
+                logger.info(f"   Has eodhd_api_key: {'eodhd_api_key' in creds_doc}")
+            
             eodhd_api_key = None
             if creds_doc and creds_doc.get('eodhd_api_key'):
                 try:
                     eodhd_api_key = decrypt_value(creds_doc['eodhd_api_key'])
-                    logger.info(f"✅ EODHD API key loaded: {eodhd_api_key[:10]}..." if eodhd_api_key else "❌ Decryption failed")
+                    logger.info(f"✅ EODHD API key loaded: {eodhd_api_key[:10]}..." if eodhd_api_key else "❌ Decryption returned None")
                 except Exception as e:
                     logger.error(f"❌ Error decrypting EODHD API key: {e}")
             else:
