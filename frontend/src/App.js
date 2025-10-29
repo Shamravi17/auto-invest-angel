@@ -1789,19 +1789,19 @@ function App() {
           <TabsContent value="nse-logs">
             <Card className="bg-white/90 backdrop-blur border-slate-200">
               <CardHeader>
-                <CardTitle>NSE API Logs</CardTitle>
-                <CardDescription>Request/Response logs for NSE Index Data API calls</CardDescription>
+                <CardTitle>EODHD API Logs</CardTitle>
+                <CardDescription>Request/Response logs for EODHD Financial Data API calls</CardDescription>
               </CardHeader>
               <CardContent>
-                {nseApiLogs.length === 0 ? (
+                {eodhdApiLogs.length === 0 ? (
                   <div className="text-center py-12">
                     <BarChart3 className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                    <p className="text-slate-500 text-lg mb-2">No NSE API calls yet</p>
-                    <p className="text-xs text-slate-400">Logs will appear when bot fetches index data for symbols with proxy_index mapped</p>
+                    <p className="text-slate-500 text-lg mb-2">No EODHD API calls yet</p>
+                    <p className="text-xs text-slate-400">Logs will appear when bot fetches financial data</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {nseApiLogs.map((log) => (
+                    {eodhdApiLogs.map((log) => (
                       <div key={log.id} className={`p-4 rounded-lg border ${log.status === 'SUCCESS' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-3">
