@@ -1816,6 +1816,7 @@ async def run_trading_bot(manual_trigger: bool = False):
             # Fetch EODHD market data (fundamentals + technical)
             eodhd_fundamentals = None
             eodhd_technical = None
+            proxy_index_data = None
             
             # Get EODHD API key from credentials
             logger.info(f"🔑 Fetching EODHD API key from database for {symbol}...")
@@ -1853,10 +1854,49 @@ async def run_trading_bot(manual_trigger: bool = False):
                     # Clean symbol - remove -EQ suffix for EODHD
                     clean_symbol = symbol.replace('-EQ', '').replace('-eq', '')
                     
-                    # Fetch EODHD data
+                    # Fetch EODHD data for the stock
                     eodhd_data = await fetch_eodhd_data(clean_symbol, exchange, eodhd_api_key)
                     eodhd_fundamentals = eodhd_data.get('fundamentals')
                     eodhd_technical = eodhd_data.get('technical')
+                    
+                    # Fetch EODHD data for proxy index if mapped
+                    proxy_index = item.get('proxy_index')
+                    if proxy_index and proxy_index.strip():
+                        logger.info(f"📊 Proxy index mapped: {proxy_index}")
+                        logger.info(f"   Fetching EODHD data for index...")
+                        
+                        # Clean proxy index name and try different formats
+                        proxy_clean = proxy_index.strip().upper()
+                        
+                        # Try common index symbol formats
+                        index_symbols = [
+                            f"{proxy_clean}.INDX",  # EODHD index format
+                            f"^{proxy_clean}",       # Yahoo format
+                            proxy_clean,             # As-is
+                        ]
+                        
+                        # Also try removing spaces for indices like "NIFTY 50" -> "NIFTY50"
+                        if ' ' in proxy_clean:
+                            no_space = proxy_clean.replace(' ', '')
+                            index_symbols.append(f"{no_space}.INDX")
+                            index_symbols.append(f"^{no_space}")
+                            index_symbols.append(no_space)
+                        
+                        # Try fetching with different formats
+                        for idx_symbol in index_symbols:
+                            try:
+                                # For indices, exchange might be INDX or omitted
+                                idx_data = await fetch_eodhd_data(idx_symbol, "INDX", eodhd_api_key)
+                                if idx_data and (idx_data.get('fundamentals') or idx_data.get('technical')):
+                                    proxy_index_data = idx_data
+                                    logger.info(f"   ✅ Index data fetched using: {idx_symbol}")
+                                    break
+                            except Exception as e:
+                                logger.debug(f"   Failed with {idx_symbol}: {e}")
+                                continue
+                        
+                        if not proxy_index_data:
+                            logger.warning(f"   ⚠️ Could not fetch index data for: {proxy_index}")
                     
                 except Exception as e:
                     logger.warning(f"Error fetching EODHD data for {symbol}: {e}")
@@ -1868,7 +1908,7 @@ async def run_trading_bot(manual_trigger: bool = False):
                 symbol, action, market_data, config, item, 
                 {"holdings": portfolio['holdings'], "available_cash": available_balance}, 
                 action_counts.get('sip', 0), isin,
-                eodhd_technical, eodhd_fundamentals
+                eodhd_technical, eodhd_fundamentals, proxy_index_data
             )
             
             # Log analysis
