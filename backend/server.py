@@ -523,7 +523,7 @@ async def get_portfolio():
             logger.warning(f"Could not fetch RMS limits: {str(rms_error)}")
             available_cash = 0
         
-        if holdings['status']:
+        if holdings and isinstance(holdings, dict) and holdings.get('status'):
             # Log successful portfolio fetch
             await log_angel_one_api_call(
                 endpoint="/portfolio/holdings",
@@ -535,11 +535,11 @@ async def get_portfolio():
             )
             
             return {
-                "holdings": holdings['data'],
+                "holdings": holdings.get('data', []),
                 "available_cash": available_cash
             }
         else:
-            error_msg = holdings.get('message', 'Unknown error')
+            error_msg = holdings.get('message', 'Unknown error') if isinstance(holdings, dict) else 'Invalid response format'
             logger.error(f"Error fetching portfolio: {error_msg}")
             
             # Send Telegram notification for portfolio sync failure
