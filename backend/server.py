@@ -574,6 +574,23 @@ async def get_portfolio():
         error_msg = str(e)
         logger.error(f"Error fetching portfolio: {error_msg}")
         
+        # Send Telegram notification for portfolio exception
+        try:
+            config = await get_bot_config()
+            if config.telegram_enabled:
+                await send_telegram_notification(
+                    f"📊 **Portfolio Sync Error**\n\n"
+                    f"❌ Exception: {error_msg}\n\n"
+                    f"Portfolio sync encountered an error.\n"
+                    f"This might indicate:\n"
+                    f"- Authentication issues\n"
+                    f"- Network connectivity problems\n"
+                    f"- Angel One API downtime",
+                    config
+                )
+        except Exception as notify_error:
+            logger.error(f"Failed to send telegram notification: {notify_error}")
+        
         # Log exception
         await log_angel_one_api_call(
             endpoint="/portfolio/holdings",
