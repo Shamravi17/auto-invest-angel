@@ -892,7 +892,7 @@ async def fetch_eodhd_technical(symbol: str, exchange: str, api_key: str) -> Opt
 
 async def fetch_eodhd_data(symbol: str, exchange: str, api_key: str) -> Dict:
     """
-    Fetch both fundamental and technical data from EODHD
+    Fetch fundamental data from EODHD (technical disabled)
     
     Args:
         symbol: Stock symbol
@@ -900,7 +900,7 @@ async def fetch_eodhd_data(symbol: str, exchange: str, api_key: str) -> Dict:
         api_key: EODHD API key
     
     Returns:
-        Dictionary with 'fundamentals' and 'technical' keys
+        Dictionary with 'fundamentals' and 'technical' keys (technical always None)
     """
     if not api_key:
         logger.warning("⚠️ EODHD API key not configured")
@@ -908,15 +908,12 @@ async def fetch_eodhd_data(symbol: str, exchange: str, api_key: str) -> Dict:
     
     logger.info(f"📊 Fetching EODHD data for {symbol}.{exchange}...")
     
-    # Fetch both in parallel
-    fundamentals_task = fetch_eodhd_fundamentals(symbol, exchange, api_key)
-    technical_task = fetch_eodhd_technical(symbol, exchange, api_key)
-    
-    fundamentals, technical = await asyncio.gather(fundamentals_task, technical_task)
+    # Only fetch fundamentals (technical disabled due to API limitations)
+    fundamentals = await fetch_eodhd_fundamentals(symbol, exchange, api_key)
     
     return {
         'fundamentals': fundamentals,
-        'technical': technical
+        'technical': None  # Disabled - API returns 403
     }
 
 
