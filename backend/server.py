@@ -360,28 +360,18 @@ async def authenticate_angel_one():
         totp = pyotp.TOTP(creds["totp_secret"])
         totp_code = totp.now()
         
-        # Angel One authentication - try with password first, then MPIN
+        # Angel One requires MPIN for authentication (not password)
         request_data = {
             "clientCode": creds["client_id"],
             "totp": totp_code
-            # Not logging password/mpin for security
+            # Not logging mpin for security
         }
         
-        # Try with password first (standard login)
-        try:
-            session = smart_api.generateSession(
-                clientCode=creds["client_id"],
-                password=creds["password"],  # Use actual password
-                totp=totp_code
-            )
-        except Exception as password_error:
-            logger.warning(f"Password auth failed, trying MPIN: {str(password_error)}")
-            # If password fails, try MPIN
-            session = smart_api.generateSession(
-                clientCode=creds["client_id"],
-                password=creds["mpin"],  # Try MPIN as fallback
-                totp=totp_code
-            )
+        session = smart_api.generateSession(
+            clientCode=creds["client_id"],
+            password=creds["mpin"],  # Angel One requires MPIN as password
+            totp=totp_code
+        )
         
         execution_time = (datetime.now() - start_time).total_seconds() * 1000
         
