@@ -428,8 +428,9 @@ async def authenticate_angel_one():
         
         # Send Telegram notification for auth exception
         try:
-            config = await get_config()
-            if config.telegram_enabled:
+            config_data = await get_config()
+            if config_data.get('telegram_enabled'):
+                config = BotConfig(**config_data)
                 await send_telegram_notification(
                     f"🔐 **Angel One Authentication Error**\n\n"
                     f"❌ Exception: {error_msg}\n\n"
