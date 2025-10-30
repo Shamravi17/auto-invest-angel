@@ -425,6 +425,23 @@ async def authenticate_angel_one():
         error_msg = str(e)
         logger.error(f"Angel One authentication error: {error_msg}")
         
+        # Send Telegram notification for auth exception
+        try:
+            config = await get_bot_config()
+            if config.telegram_enabled:
+                await send_telegram_notification(
+                    f"🔐 **Angel One Authentication Error**\n\n"
+                    f"❌ Exception: {error_msg}\n\n"
+                    f"This might be due to:\n"
+                    f"- Invalid TOTP secret format\n"
+                    f"- Missing credentials\n"
+                    f"- Network issues\n\n"
+                    f"Please verify your Angel One credentials.",
+                    config
+                )
+        except Exception as notify_error:
+            logger.error(f"Failed to send telegram notification: {notify_error}")
+        
         # Log exception
         await log_angel_one_api_call(
             endpoint="/user/login",
