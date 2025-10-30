@@ -2187,13 +2187,6 @@ async def cleanup_duplicate_watchlist():
         
         return {"success": True, "removed": removed, "message": f"Removed {removed} duplicate items"}
 
-
-@app.delete("/api/eodhd-cache")
-async def clear_eodhd_cache():
-    """Clear EODHD cache (useful for testing or forcing refresh)"""
-    result = await db.eodhd_cache.delete_many({})
-    return {"success": True, "deleted_count": result.deleted_count}
-
         
     except Exception as e:
         logger.error(f"Cleanup duplicates error: {str(e)}")
