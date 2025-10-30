@@ -393,6 +393,21 @@ async def authenticate_angel_one():
             error_msg = session.get('message', 'Unknown error')
             logger.error(f"Angel One auth failed: {error_msg}")
             
+            # Send Telegram notification for auth failure
+            config = await get_bot_config()
+            if config.telegram_enabled:
+                await send_telegram_notification(
+                    f"🔐 **Angel One Authentication Failed**\n\n"
+                    f"❌ Error: {error_msg}\n\n"
+                    f"Please check your Angel One credentials:\n"
+                    f"- API Key\n"
+                    f"- Client ID\n"
+                    f"- MPIN\n"
+                    f"- TOTP Secret\n\n"
+                    f"Update credentials in Settings → Angel One Credentials",
+                    config
+                )
+            
             # Log failed authentication
             await log_angel_one_api_call(
                 endpoint="/user/login",
