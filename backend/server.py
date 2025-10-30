@@ -321,13 +321,26 @@ async def get_credentials_api():
 @app.put("/api/credentials")
 async def update_credentials(credentials: Credentials):
     """Update credentials in database (encrypted)"""
+    
+    # Add padding to TOTP secret if needed (base32 requires padding)
+    totp_secret = credentials.angel_totp_secret
+    if totp_secret:
+        # Remove any existing padding first
+        totp_secret = totp_secret.rstrip('=')
+        # Add correct padding
+        missing_padding = len(totp_secret) % 8
+        if missing_padding:
+            totp_secret = totp_secret + '=' * (8 - missing_padding)
+        logger.info(f"TOTP secret padded: {totp_secret[:10]}... (length: {len(totp_secret)})")
+    
     encrypted_creds = {
         "_id": "main",
         "angel_api_key": encrypt_value(credentials.angel_api_key) if credentials.angel_api_key else None,
         "angel_client_id": encrypt_value(credentials.angel_client_id) if credentials.angel_client_id else None,
         "angel_password": encrypt_value(credentials.angel_password) if credentials.angel_password else None,
-        "angel_totp_secret": encrypt_value(credentials.angel_totp_secret) if credentials.angel_totp_secret else None,
+        "angel_totp_secret": encrypt_value(totp_secret) if totp_secret else None,
         "angel_mpin": encrypt_value(credentials.angel_mpin) if credentials.angel_mpin else None,
+        "eodhd_api_key": encrypt_value(credentials.eodhd_api_key) if credentials.eodhd_api_key else None,
         "last_updated": get_ist_timestamp()
     }
     
