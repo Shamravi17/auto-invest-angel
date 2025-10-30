@@ -544,8 +544,9 @@ async def get_portfolio():
             
             # Send Telegram notification for portfolio sync failure
             try:
-                config = await get_config()
-                if config.telegram_enabled:
+                config_data = await get_config()
+                if config_data.get('telegram_enabled'):
+                    config = BotConfig(**config_data)
                     await send_telegram_notification(
                         f"📊 **Portfolio Sync Failed**\n\n"
                         f"❌ Error: {error_msg}\n\n"
