@@ -540,6 +540,23 @@ async def get_portfolio():
             error_msg = holdings.get('message', 'Unknown error')
             logger.error(f"Error fetching portfolio: {error_msg}")
             
+            # Send Telegram notification for portfolio sync failure
+            try:
+                config = await get_bot_config()
+                if config.telegram_enabled:
+                    await send_telegram_notification(
+                        f"📊 **Portfolio Sync Failed**\n\n"
+                        f"❌ Error: {error_msg}\n\n"
+                        f"Unable to fetch portfolio from Angel One.\n"
+                        f"Please check:\n"
+                        f"- Angel One credentials are correct\n"
+                        f"- Your Angel One account is active\n"
+                        f"- API access is enabled",
+                        config
+                    )
+            except Exception as notify_error:
+                logger.error(f"Failed to send telegram notification: {notify_error}")
+            
             # Log failed portfolio fetch
             await log_angel_one_api_call(
                 endpoint="/portfolio/holdings",
