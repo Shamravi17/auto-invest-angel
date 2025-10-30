@@ -773,7 +773,7 @@ import time
 
 async def fetch_eodhd_fundamentals(symbol: str, exchange: str, api_key: str) -> Optional[Dict]:
     """
-    Fetch fundamental data from EODHD API
+    Fetch fundamental data from EODHD API with daily caching
     
     Args:
         symbol: Stock symbol (e.g., "RELIANCE")
@@ -783,8 +783,22 @@ async def fetch_eodhd_fundamentals(symbol: str, exchange: str, api_key: str) -> 
     Returns:
         Dictionary with fundamental data or None if failed
     """
-    start_time = time.time()
     exchange_symbol = f"{symbol}.{exchange}"
+    today_date = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+    
+    # Check cache first
+    cache_entry = await db.eodhd_cache.find_one({
+        "exchange_symbol": exchange_symbol,
+        "date": today_date,
+        "data_type": "fundamentals"
+    })
+    
+    if cache_entry and cache_entry.get('data'):
+        logger.info(f"📦 Using cached fundamentals for {exchange_symbol} (from {today_date})")
+        return cache_entry['data']
+    
+    # Not in cache or expired - fetch from API
+    start_time = time.time()
     url = f"{EODHD_BASE_URL}/fundamentals/{exchange_symbol}"
     
     params = {
@@ -827,12 +841,28 @@ async def fetch_eodhd_fundamentals(symbol: str, exchange: str, api_key: str) -> 
                         'price_sales_ttm': valuation.get('PriceSalesTTM')
                     }
                     
+                    # Store in cache
+                    await db.eodhd_cache.update_one(
+                        {
+                            "exchange_symbol": exchange_symbol,
+                            "date": today_date,
+                            "data_type": "fundamentals"
+                        },
+                        {
+                            "$set": {
+                                "data": fundamentals,
+                                "cached_at": get_ist_timestamp()
+                            }
+                        },
+                        upsert=True
+                    )
+                    
                     log_entry.response_data = fundamentals
                     log_entry.status = "SUCCESS"
                     log_entry.execution_time_ms = execution_time
                     await db.eodhd_api_logs.insert_one(log_entry.model_dump())
                     
-                    logger.info(f"✅ EODHD Fundamentals: {exchange_symbol} PE={fundamentals.get('pe_ratio')}")
+                    logger.info(f"✅ EODHD Fundamentals: {exchange_symbol} PE={fundamentals.get('pe_ratio')} (cached)")
                     return fundamentals
                 else:
                     error_msg = f"EODHD API status {response.status}"
