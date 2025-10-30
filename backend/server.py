@@ -855,97 +855,10 @@ async def fetch_eodhd_fundamentals(symbol: str, exchange: str, api_key: str) -> 
 
 async def fetch_eodhd_technical(symbol: str, exchange: str, api_key: str) -> Optional[Dict]:
     """
-    Fetch technical indicators from EODHD API
-    
-    Args:
-        symbol: Stock symbol (e.g., "RELIANCE")
-        exchange: Exchange (NSE or BSE)
-        api_key: EODHD API key
-    
-    Returns:
-        Dictionary with technical indicators or None if failed
+    Technical indicators disabled - API returns 403
+    Returning None to skip technical data
     """
-    start_time = time.time()
-    exchange_symbol = f"{symbol}.{exchange}"
-    
-    technical_data = {}
-    indicators = {
-        'rsi': {'function': 'rsi', 'period': 14},
-        'macd': {'function': 'macd', 'fast_period': 12, 'slow_period': 26, 'signal_period': 9},
-        'adx': {'function': 'adx', 'period': 14},
-        'atr': {'function': 'atr', 'period': 14},
-        'mfi': {'function': 'mfi', 'period': 14},
-    }
-    
-    for indicator_name, params in indicators.items():
-        try:
-            url = f"{EODHD_BASE_URL}/technical/{exchange_symbol}"
-            
-            api_params = {
-                'api_token': api_key,
-                'function': params['function'],
-                'period': params.get('period', 14)
-            }
-            
-            # Add MACD specific parameters
-            if indicator_name == 'macd':
-                api_params['fast_period'] = params['fast_period']
-                api_params['slow_period'] = params['slow_period']
-                api_params['signal_period'] = params['signal_period']
-            
-            log_entry = EODHDAPILog(
-                symbol=symbol,
-                exchange_symbol=exchange_symbol,
-                data_type="technical",
-                indicator=indicator_name.upper(),
-                request_url=url,
-                status="PENDING"
-            )
-            
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, params=api_params, timeout=aiohttp.ClientTimeout(total=10)) as response:
-                    execution_time = (time.time() - start_time) * 1000
-                    
-                    if response.status == 200:
-                        data = await response.json()
-                        
-                        # Get latest value
-                        if data and len(data) > 0:
-                            latest = data[0]
-                            
-                            if indicator_name == 'rsi':
-                                technical_data['rsi_14'] = latest.get('rsi')
-                            elif indicator_name == 'macd':
-                                technical_data['macd'] = latest.get('macd')
-                                technical_data['macd_signal'] = latest.get('signal')
-                            elif indicator_name == 'adx':
-                                technical_data['adx_14'] = latest.get('adx')
-                            elif indicator_name == 'atr':
-                                technical_data['atr_14'] = latest.get('atr')
-                            elif indicator_name == 'mfi':
-                                technical_data['mfi_14'] = latest.get('mfi')
-                        
-                        log_entry.response_data = data[0] if data else {}
-                        log_entry.status = "SUCCESS"
-                        log_entry.execution_time_ms = execution_time
-                        await db.eodhd_api_logs.insert_one(log_entry.model_dump())
-                    else:
-                        text = await response.text()
-                        log_entry.error = f"Status {response.status}: {text[:100]}"
-                        log_entry.status = "FAILED"
-                        log_entry.execution_time_ms = execution_time
-                        await db.eodhd_api_logs.insert_one(log_entry.model_dump())
-                        
-        except Exception as e:
-            logger.warning(f"⚠️ EODHD {indicator_name.upper()} error for {exchange_symbol}: {str(e)}")
-            continue
-    
-    if technical_data:
-        logger.info(f"✅ EODHD Technical: {exchange_symbol} - {len(technical_data)} indicators fetched")
-        return technical_data
-    else:
-        logger.warning(f"⚠️ No technical data fetched for {exchange_symbol}")
-        return None
+    return None
 
 async def fetch_eodhd_data(symbol: str, exchange: str, api_key: str) -> Dict:
     """
