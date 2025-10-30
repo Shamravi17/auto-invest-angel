@@ -2276,6 +2276,12 @@ async def get_eodhd_api_logs(limit: int = 100):
     logs = await db.eodhd_api_logs.find({}, {"_id": 0}).sort("timestamp", -1).limit(limit).to_list(limit)
     return logs
 
+@app.delete("/api/eodhd-cache")
+async def clear_eodhd_cache():
+    """Clear EODHD cache (useful for testing or forcing refresh)"""
+    result = await db.eodhd_cache.delete_many({})
+    return {"success": True, "deleted_count": result.deleted_count}
+
 
 # Available LLM Models
 @app.get("/api/llm-models")
