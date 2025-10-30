@@ -394,7 +394,7 @@ async def authenticate_angel_one():
             logger.error(f"Angel One auth failed: {error_msg}")
             
             # Send Telegram notification for auth failure
-            config = await get_bot_config()
+            config = await get_config()
             if config.telegram_enabled:
                 await send_telegram_notification(
                     f"🔐 **Angel One Authentication Failed**\n\n"
@@ -427,7 +427,7 @@ async def authenticate_angel_one():
         
         # Send Telegram notification for auth exception
         try:
-            config = await get_bot_config()
+            config = await get_config()
             if config.telegram_enabled:
                 await send_telegram_notification(
                     f"🔐 **Angel One Authentication Error**\n\n"
@@ -542,7 +542,7 @@ async def get_portfolio():
             
             # Send Telegram notification for portfolio sync failure
             try:
-                config = await get_bot_config()
+                config = await get_config()
                 if config.telegram_enabled:
                     await send_telegram_notification(
                         f"📊 **Portfolio Sync Failed**\n\n"
@@ -576,7 +576,7 @@ async def get_portfolio():
         
         # Send Telegram notification for portfolio exception
         try:
-            config = await get_bot_config()
+            config = await get_config()
             if config.telegram_enabled:
                 await send_telegram_notification(
                     f"📊 **Portfolio Sync Error**\n\n"
