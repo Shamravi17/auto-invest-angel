@@ -967,6 +967,7 @@ async def fetch_eodhd_fundamentals(symbol: str, exchange: str, api_key: str) -> 
     except Exception as e:
         error_msg = f"EODHD error: {str(e)}"
         log_entry.error = error_msg
+        log_entry.response_data = {"exception": str(e), "exception_type": type(e).__name__}
         log_entry.status = "FAILED"
         log_entry.execution_time_ms = (time.time() - start_time) * 1000
         await db.eodhd_api_logs.insert_one(log_entry.model_dump())
