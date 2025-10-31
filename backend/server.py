@@ -1484,6 +1484,94 @@ REASONING: <brief 2-3 line explanation>
 
 Provide your recommendation based on fundamentals, technical analysis, and market data.
 """
+        elif action == "exit_reentry":
+            quantity = item.get('quantity', 0) or 0
+            avg_price = item.get('avg_price', 0) or 0
+            ltp = market_data.get('ltp', 0) or 0
+            awaiting_reentry = item.get('awaiting_reentry', False)
+            
+            # Check if we're awaiting re-entry
+            if awaiting_reentry:
+                exit_price = item.get('exit_price', 0) or 0
+                exit_amount = item.get('exit_amount', 0) or 0
+                
+                prompt = f"""
+You are a stock market analyst. We EXITED this position earlier and are waiting for a good RE-ENTRY point.
+
+**STOCK**: {symbol}{isin_info}
+**CURRENT PRICE**: ₹{ltp:.2f}
+**EXIT DETAILS**:
+- Exited at: ₹{exit_price:.2f}
+- Reserved amount: ₹{exit_amount:.2f}
+- Price change since exit: {((ltp - exit_price) / exit_price * 100) if exit_price > 0 else 0:+.2f}%
+{tech_info}{fundamentals_info}{proxy_info}
+
+**USER'S ANALYSIS PARAMETERS**:
+{config.analysis_parameters}
+
+**YOUR TASK**: Decide if NOW is a good time to RE-ENTER this position.
+
+**RE-ENTRY CRITERIA** (Check these):
+1. Stock price corrected sufficiently (ideally 10-20% below exit price)
+2. Technical indicators showing oversold or reversal (RSI < 40, support levels)
+3. Fundamentals still strong or improved
+4. No major negative news or sector weakness
+5. Market conditions favorable
+
+**RESPONSE FORMAT** (must follow exactly):
+REENTRY_DECISION: YES or NO
+AMOUNT: <amount to invest from reserved ₹{exit_amount:.2f}>
+REASONING: <brief 2-3 line explanation>
+
+**EXAMPLES**:
+- "REENTRY_DECISION: YES\\nAMOUNT: 5000\\nREASONING: Price corrected 15% from exit. RSI at 35 showing oversold. Strong support level. Good re-entry point."
+- "REENTRY_DECISION: NO\\nAMOUNT: 0\\nREASONING: Only 5% correction. Stock still overvalued with P/E at 40. Wait for deeper pullback to 20% below exit price."
+"""
+            else:
+                # Not exited yet - check if should exit now
+                current_value = quantity * ltp
+                investment = quantity * avg_price
+                pnl = current_value - investment
+                pnl_pct = (pnl / investment * 100) if investment > 0 else 0
+                
+                prompt = f"""
+You are a stock market analyst analyzing if this position should be EXITED now for profit booking.
+
+**STOCK**: {symbol}{isin_info}
+**CURRENT PRICE**: ₹{ltp:.2f}
+**YOUR POSITION**:
+- Quantity: {quantity}
+- Average Price: ₹{avg_price:.2f}
+- Investment: ₹{investment:.2f}
+- Current Value: ₹{current_value:.2f}
+- **Profit: ₹{pnl:.2f} ({pnl_pct:+.2f}%)**
+{tech_info}{fundamentals_info}{proxy_info}
+
+**USER'S ANALYSIS PARAMETERS**:
+{config.analysis_parameters}
+
+**YOUR TASK**: Decide if this stock has reached PEAK value and should be SOLD NOW for profit booking.
+
+**EXIT CRITERIA** (Check these):
+1. Stock price significantly overvalued (P/E ratio very high, price >> fair value)
+2. Technical indicators showing overbought (RSI > 70, hitting resistance)
+3. Profit already substantial (>30-50% gains) and risk of correction
+4. Fundamental deterioration or sector headwinds
+5. Better opportunities elsewhere
+
+**IMPORTANT**: 
+- After exit, amount will be RESERVED for re-entry when price corrects
+- Only exit if strong signals of overvaluation
+- This is tactical trading - exit high, re-enter low
+
+**RESPONSE FORMAT** (must follow exactly):
+EXIT_DECISION: YES or NO
+REASONING: <brief 2-3 line explanation>
+
+**EXAMPLES**:
+- "EXIT_DECISION: YES\\nREASONING: Stock up 80% with RSI at 76. P/E stretched at 42 vs sector avg 28. Book profits now."
+- "EXIT_DECISION: NO\\nREASONING: Only 15% gain. Fundamentals strong with room to grow. RSI at 58 (neutral). Hold position."
+"""
         else:
             # For other actions
             quantity = item.get('quantity', 0) or 0
