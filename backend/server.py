@@ -2276,6 +2276,52 @@ async def run_trading_bot(manual_trigger: bool = False):
                             logger.info(f"✓ Completed re-entry for {symbol}: Invested ₹{sip_amount:.2f}")
                             logger.info(f"  → Re-entry flags cleared, normal SIP cycle resumed")
                         
+                        # Handle EXIT_REENTRY action exit marking
+                        elif (action == "exit_reentry" and order_result.get('success') and 
+                              'should_mark_reentry' in locals() and should_mark_reentry):
+                            
+                            # Update watchlist item for re-entry
+                            update_fields = {
+                                "awaiting_reentry": True,
+                                "exit_price": exit_info["exit_price"],
+                                "exit_amount": exit_info["exit_amount"],
+                                "exit_date": exit_info["exit_date"],
+                                "exit_quantity": exit_info["exit_quantity"],
+                                "quantity": 0,  # Reset quantity since we sold everything
+                                "avg_price": 0  # Reset avg price
+                            }
+                            
+                            await db.watchlist.update_one(
+                                {"id": item['id']},
+                                {"$set": update_fields}
+                            )
+                            
+                            logger.info(f"✓ EXIT & RE-ENTRY: Marked {symbol} for re-entry")
+                            logger.info(f"  → Exit amount ₹{exit_info['exit_amount']:.2f} at ₹{exit_info['exit_price']:.2f}")
+                            logger.info(f"  → Will re-buy when price corrects and conditions are favorable")
+                        
+                        # Handle EXIT_REENTRY re-buy completion
+                        elif (action == "exit_reentry" and order_result.get('success') and 
+                              item.get('awaiting_reentry', False) and transaction_type == "BUY"):
+                            
+                            # Clear re-entry flags since we've successfully re-entered
+                            clear_reentry_fields = {
+                                "awaiting_reentry": False,
+                                "exit_price": None,
+                                "exit_amount": None,
+                                "exit_date": None,
+                                "exit_quantity": None
+                            }
+                            
+                            await db.watchlist.update_one(
+                                {"id": item['id']},
+                                {"$set": clear_reentry_fields}
+                            )
+                            
+                            logger.info(f"✓ EXIT & RE-ENTRY: Completed re-buy for {symbol}")
+                            logger.info(f"  → Invested ₹{reentry_amount:.2f} at ₹{market_data.get('ltp', 0):.2f}")
+                            logger.info(f"  → Re-entry flags cleared, monitoring resumed")
+                        
                         # Update analysis log with execution results
                         analysis_log.executed = order_result.get('success', False)
                         analysis_log.order_id = order_result.get('order_id')
