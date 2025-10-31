@@ -795,9 +795,16 @@ function App() {
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <p className="font-semibold text-slate-800 text-lg">{item.symbol}</p>
                                   <Badge 
-                                    variant={item.action === 'sip' ? 'default' : item.action === 'buy' ? 'secondary' : item.action === 'sell' ? 'destructive' : 'outline'}
+                                    variant={
+                                      item.action === 'sip' ? 'default' : 
+                                      item.action === 'buy' ? 'secondary' : 
+                                      item.action === 'sell' ? 'destructive' : 
+                                      item.action === 'exit_reentry' ? 'default' :
+                                      'outline'
+                                    }
+                                    className={item.action === 'exit_reentry' ? 'bg-amber-500 text-white' : ''}
                                   >
-                                    {item.action.toUpperCase()}
+                                    {item.action === 'exit_reentry' ? 'EXIT & RE-ENTRY' : item.action.toUpperCase()}
                                   </Badge>
                                   {item.instrument_type && (
                                     <Badge className="bg-purple-100 text-purple-800 border-purple-200">
