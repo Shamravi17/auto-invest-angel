@@ -1831,37 +1831,58 @@ function App() {
                         
                         {/* Success - Show Data */}
                         {log.status === 'SUCCESS' && log.response_data && (
-                          <div className="grid grid-cols-5 gap-2 mt-3 p-3 bg-white rounded border border-green-200">
-                            {log.response_data.pe && (
-                              <div className="text-xs">
-                                <span className="text-slate-500">P/E:</span>
-                                <p className="font-semibold">{log.response_data.pe.toFixed(2)}</p>
-                              </div>
-                            )}
-                            {log.response_data.pb && (
-                              <div className="text-xs">
-                                <span className="text-slate-500">P/B:</span>
-                                <p className="font-semibold">{log.response_data.pb.toFixed(2)}</p>
-                              </div>
-                            )}
-                            {log.response_data.divYield && (
-                              <div className="text-xs">
-                                <span className="text-slate-500">Div Yield:</span>
-                                <p className="font-semibold">{log.response_data.divYield.toFixed(2)}%</p>
-                              </div>
-                            )}
-                            {log.response_data.last && (
-                              <div className="text-xs">
-                                <span className="text-slate-500">Index:</span>
-                                <p className="font-semibold">{log.response_data.last.toFixed(2)}</p>
-                              </div>
-                            )}
-                            {log.response_data.percentChange !== undefined && (
-                              <div className="text-xs">
-                                <span className="text-slate-500">Change:</span>
-                                <p className={`font-semibold ${log.response_data.percentChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                  {log.response_data.percentChange >= 0 ? '+' : ''}{log.response_data.percentChange.toFixed(2)}%
-                                </p>
+                          <div className="mt-3">
+                            {log.data_type === 'fundamentals' && log.response_data.fundamentals && (
+                              <div className="p-3 bg-white rounded border border-green-200">
+                                <p className="text-xs font-semibold text-slate-700 mb-2">Fundamentals:</p>
+                                <div className="grid grid-cols-3 gap-2">
+                                  {log.response_data.fundamentals.pe_ratio && (
+                                    <div className="text-xs">
+                                      <span className="text-slate-500">P/E:</span>
+                                      <p className="font-semibold">{log.response_data.fundamentals.pe_ratio.toFixed(2)}</p>
+                                    </div>
+                                  )}
+                                  {log.response_data.fundamentals.pb_ratio && (
+                                    <div className="text-xs">
+                                      <span className="text-slate-500">P/B:</span>
+                                      <p className="font-semibold">{log.response_data.fundamentals.pb_ratio.toFixed(2)}</p>
+                                    </div>
+                                  )}
+                                  {log.response_data.fundamentals.dividend_yield && (
+                                    <div className="text-xs">
+                                      <span className="text-slate-500">Div Yield:</span>
+                                      <p className="font-semibold">{log.response_data.fundamentals.dividend_yield.toFixed(2)}%</p>
+                                    </div>
+                                  )}
+                                  {log.response_data.fundamentals.roe && (
+                                    <div className="text-xs">
+                                      <span className="text-slate-500">ROE:</span>
+                                      <p className="font-semibold">{log.response_data.fundamentals.roe.toFixed(2)}%</p>
+                                    </div>
+                                  )}
+                                  {log.response_data.fundamentals.eps && (
+                                    <div className="text-xs">
+                                      <span className="text-slate-500">EPS:</span>
+                                      <p className="font-semibold">₹{log.response_data.fundamentals.eps.toFixed(2)}</p>
+                                    </div>
+                                  )}
+                                  {log.response_data.fundamentals.market_cap && (
+                                    <div className="text-xs">
+                                      <span className="text-slate-500">Market Cap:</span>
+                                      <p className="font-semibold">₹{(log.response_data.fundamentals.market_cap / 10000000).toFixed(0)}Cr</p>
+                                    </div>
+                                  )}
+                                </div>
+                                
+                                {/* Show raw response sections */}
+                                {log.response_data.data_keys && (
+                                  <details className="mt-2">
+                                    <summary className="text-xs text-slate-500 cursor-pointer">Raw API response sections</summary>
+                                    <div className="mt-1 text-xs text-slate-600">
+                                      {log.response_data.data_keys.join(', ')}
+                                    </div>
+                                  </details>
+                                )}
                               </div>
                             )}
                           </div>
@@ -1871,11 +1892,11 @@ function App() {
                         {log.status === 'FAILED' && log.error && (
                           <div className="mt-2 p-3 bg-red-100 rounded border border-red-300">
                             <p className="text-xs font-mono text-red-800">{log.error}</p>
-                            {log.response_data?.available_indices && (
+                            {log.response_data && (
                               <details className="mt-2">
-                                <summary className="text-xs text-red-700 cursor-pointer">View available indices</summary>
-                                <div className="mt-2 text-xs text-red-700 max-h-32 overflow-y-auto">
-                                  {log.response_data.available_indices.join(', ')}
+                                <summary className="text-xs text-red-700 cursor-pointer">View response details</summary>
+                                <div className="mt-2 text-xs text-red-700 max-h-32 overflow-y-auto font-mono">
+                                  <pre>{JSON.stringify(log.response_data, null, 2)}</pre>
                                 </div>
                               </details>
                             )}
