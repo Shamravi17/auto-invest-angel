@@ -2128,6 +2128,45 @@ async def run_trading_bot(manual_trigger: bool = False):
                         order_type_desc = "EXIT_AND_REENTER"
                         logger.info(f"Executing EXIT_AND_REENTER: Sell {quantity} units of {symbol}")
                     
+                    elif action == "exit_reentry":
+                        # Handle Exit & Re-entry action
+                        if item.get('awaiting_reentry', False):
+                            # We're awaiting re-entry - check if LLM says to re-enter
+                            if llm_result.get('decision') == "YES":
+                                transaction_type = "BUY"
+                                reentry_amount = llm_result.get('amount', item.get('exit_amount', 0))
+                                current_price = market_data.get('ltp', 0)
+                                quantity = int(reentry_amount / current_price) if current_price > 0 else 0
+                                order_type_desc = "EXIT_REENTRY_REBUY"
+                                logger.info(f"Executing EXIT & RE-ENTRY RE-BUY: {quantity} units of {symbol} for ₹{reentry_amount:.2f}")
+                            else:
+                                logger.info(f"⏭️ Skipping re-entry for {symbol} - LLM says wait")
+                                analysis_log.execution_status = "SKIPPED_AWAITING_BETTER_PRICE"
+                                await db.analysis_logs.insert_one(analysis_log.model_dump())
+                                continue
+                        else:
+                            # Check if LLM says to exit
+                            if llm_result.get('decision') == "YES":
+                                transaction_type = "SELL"
+                                quantity = item.get('quantity', 0)
+                                order_type_desc = "EXIT_REENTRY_SELL"
+                                logger.info(f"Executing EXIT & RE-ENTRY EXIT: Sell {quantity} units of {symbol}")
+                                
+                                # Mark for re-entry after successful order
+                                exit_value = quantity * market_data.get('ltp', 0)
+                                should_mark_reentry = True
+                                exit_info = {
+                                    "exit_price": market_data.get('ltp', 0),
+                                    "exit_amount": exit_value,
+                                    "exit_quantity": quantity,
+                                    "exit_date": datetime.now(IST).date().isoformat()
+                                }
+                            else:
+                                logger.info(f"⏭️ Skipping exit for {symbol} - LLM says hold")
+                                analysis_log.execution_status = "SKIPPED_HOLD_POSITION"
+                                await db.analysis_logs.insert_one(analysis_log.model_dump())
+                                continue
+                    
                     elif llm_result['decision'] == "EXECUTE" and action == "sip":
                         # SIP execution - buy
                         transaction_type = "BUY"
