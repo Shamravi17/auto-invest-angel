@@ -12,7 +12,7 @@ import sys
 from datetime import datetime
 
 # Backend URL from frontend/.env
-BACKEND_URL = "https://autotrade-llm.preview.emergentagent.com"
+BACKEND_URL = "https://investbot-4.preview.emergentagent.com"
 
 class TradingBotTester:
     def __init__(self):
