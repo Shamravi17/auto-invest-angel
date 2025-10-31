@@ -940,7 +940,13 @@ async def fetch_eodhd_fundamentals(symbol: str, exchange: str, api_key: str) -> 
                         upsert=True
                     )
                     
-                    log_entry.response_data = fundamentals
+                    # Log with full response data
+                    log_entry.response_data = {
+                        'fundamentals': fundamentals,
+                        'raw_highlights': highlights,
+                        'raw_valuation': valuation,
+                        'data_keys': list(data.keys())  # Show what sections were in response
+                    }
                     log_entry.status = "SUCCESS"
                     log_entry.execution_time_ms = execution_time
                     await db.eodhd_api_logs.insert_one(log_entry.model_dump())
@@ -951,6 +957,7 @@ async def fetch_eodhd_fundamentals(symbol: str, exchange: str, api_key: str) -> 
                     error_msg = f"EODHD API status {response.status}"
                     text = await response.text()
                     log_entry.error = f"{error_msg}: {text[:200]}"
+                    log_entry.response_data = {"status_code": response.status, "response_text": text[:500]}
                     log_entry.status = "FAILED"
                     log_entry.execution_time_ms = execution_time
                     await db.eodhd_api_logs.insert_one(log_entry.model_dump())
