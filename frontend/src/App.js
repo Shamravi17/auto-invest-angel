@@ -949,8 +949,14 @@ function App() {
                           <SelectItem value="sip">SIP (Systematic Investment)</SelectItem>
                           <SelectItem value="buy">Buy (One-time Purchase)</SelectItem>
                           <SelectItem value="sell">Sell (Exit Position)</SelectItem>
+                          <SelectItem value="exit_reentry">Exit & Re-entry (Tactical Trading)</SelectItem>
                         </SelectContent>
                       </Select>
+                      {editingItem.action === 'exit_reentry' && (
+                        <p className="text-xs text-amber-600">
+                          ⚡ Bot will exit when overvalued and re-enter when undervalued
+                        </p>
+                      )}
                     </div>
 
                     <Separator />
